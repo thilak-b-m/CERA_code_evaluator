@@ -1,0 +1,2 @@
+import { Inbox } from 'lucide-react';
+export default function EmptyState({ title = 'Nothing here yet', description = 'New activity will appear here.' }) { return <div className="empty"><Inbox size={30} /><div style={{ color: 'var(--text)', fontWeight: 700 }}>{title}</div><p style={{ fontSize: 12 }}>{description}</p></div>; }

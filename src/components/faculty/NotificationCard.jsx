@@ -1,0 +1,3 @@
+import { Bell } from 'lucide-react';
+export default function NotificationCard({ title, message, time }) { return <div className="activity-item"><BellMark /><div><strong style={{ fontSize: 12 }}>{title}</strong><div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 4 }}>{message}</div><small className="panel-kicker">{time}</small></div></div>; }
+function BellMark() { return <span className="kpi-icon" style={{ width: 28, height: 28 }}><Bell size={14} /></span>; }

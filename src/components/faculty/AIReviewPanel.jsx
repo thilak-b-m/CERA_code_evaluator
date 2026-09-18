@@ -1,0 +1,1 @@
+export { AIReview as default } from '../../App.jsx';

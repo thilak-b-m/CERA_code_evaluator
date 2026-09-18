@@ -1,0 +1,1 @@
+export default function FacultyFeedback({ value = '', onChange }) { return <textarea className="textarea" value={value} onChange={onChange} placeholder="Write feedback for the student..." aria-label="Faculty feedback" />; }

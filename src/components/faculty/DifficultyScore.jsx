@@ -1,0 +1,1 @@
+export default function DifficultyScore({ value = 7.4 }) { return <div style={{ font: '26px var(--app-font-mono)', color: 'var(--warning)' }}>{value} <small style={{ color: 'var(--muted)', font: '12px var(--app-font-sans)' }}>/ 10</small></div>; }

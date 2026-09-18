@@ -1,0 +1,1 @@
+export default function CodeQualityCard({ score = '8.4' }) { return <div className="panel" style={{ padding: 18 }}><div className="panel-kicker">CODE QUALITY</div><div style={{ font: '24px var(--app-font-mono)', marginTop: 8, color: 'var(--success)' }}>{score}</div></div>; }

@@ -1,0 +1,2 @@
+export default function TestCaseManager({ cases = [] }) { return <div>{cases.map(testCase => <div className="activity-item" key={testCase.id}><TestCaseLabel testCase={testCase} /></div>)}</div>; }
+function TestCaseLabel({ testCase }) { return <><span style={{ fontFamily: 'var(--app-font-mono)' }}>{testCase.id}</span><span style={{ marginLeft: 12, color: 'var(--muted)', fontSize: 12 }}>{testCase.name}</span></>; }

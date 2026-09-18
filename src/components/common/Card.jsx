@@ -1,0 +1,1 @@
+export default function Card({ title, kicker, action, children }) { return <section className="panel" style={{ overflow: 'hidden' }}><div className="panel-header"><div><div className="panel-title">{title}</div>{kicker && <div className="panel-kicker">{kicker}</div>}</div>{action}</div>{children}</section>; }

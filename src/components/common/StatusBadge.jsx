@@ -1,0 +1,1 @@
+export default function StatusBadge({ children, tone = 'neutral' }) { return <span className={`status status-${tone}`}><span className="status-dot" />{children}</span>; }

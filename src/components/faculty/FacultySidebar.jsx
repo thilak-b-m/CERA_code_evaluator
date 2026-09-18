@@ -1,0 +1,1 @@
+export { FacultyLayout as default } from '../../App.jsx';

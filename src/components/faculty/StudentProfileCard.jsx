@@ -1,0 +1,1 @@
+export default function StudentProfileCard({ student = {} }) { return <div className="panel" style={{ padding: 18, display: 'flex', gap: 12, alignItems: 'center' }}><span className="avatar">{student.initials || 'ST'}</span><div><strong>{student.name || 'Student'}</strong><div className="panel-kicker">{student.email || 'Learner profile'}</div></div></div>; }

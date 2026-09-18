@@ -1,0 +1,1 @@
+export default function QuickActions({ actions = [] }) { return <div style={{ display: 'grid', gap: 8 }}>{actions.map(action => <button className="quick-action" key={action.label} onClick={action.onClick}><span>{action.icon}</span><div><p>{action.label}</p><small>{action.description}</small></div></button>)}</div>; }

@@ -1,0 +1,1 @@
+export default function MarksDistribution({ values = [31, 42, 19, 8] }) { return <div className="bar-row">{values.map((value, index) => <span className="bar" key={index} style={{ height: `${value * 2}%` }} />)}</div>; }

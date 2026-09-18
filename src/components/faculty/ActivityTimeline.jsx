@@ -1,0 +1,1 @@
+export default function ActivityTimeline({ items = [] }) { return <div>{items.map(item => <div className="activity-item" key={item.id || item.title}><div className="kpi-icon" /><div><div style={{ fontSize: 12, fontWeight: 700 }}>{item.title}</div><div className="panel-kicker">{item.time}</div></div></div>)}</div>; }

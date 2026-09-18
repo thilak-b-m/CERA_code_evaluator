@@ -1,0 +1,1 @@
+export const api = { request: async (value) => Promise.resolve(value) };

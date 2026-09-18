@@ -1,0 +1,1 @@
+export default function AssignmentFilter({ onChange }) { return <select className="select" onChange={onChange} aria-label="Filter assignments"><option value="all">All assignments</option><option value="published">Published</option><option value="draft">Drafts</option></select>; }

@@ -1,0 +1,1 @@
+export default function LiveStatusCard({ title = 'Live status', value = '24', detail = 'active sessions' }) { return <div className="panel kpi"><div className="eyebrow">LIVE MONITOR</div><div className="kpi-value">{value}</div><div className="kpi-label">{title} · {detail}</div></div>; }

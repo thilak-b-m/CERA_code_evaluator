@@ -1,0 +1,1 @@
+export default function ExecutionResults({ passed = 7, total = 8 }) { return <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className={`status ${passed === total ? 'status-success' : 'status-warning'}`}>{passed} / {total} tests passed</span><span style={{ color: 'var(--muted)', fontSize: 11 }}>Automated suite</span></div>; }

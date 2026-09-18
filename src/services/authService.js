@@ -1,0 +1,1 @@
+export const authService = { signIn: async (credentials) => ({ ...credentials, authenticated: true }), signOut: async () => true };

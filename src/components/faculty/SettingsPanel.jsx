@@ -1,0 +1,1 @@
+export default function SettingsPanel({ children }) { return <section className="panel">{children}</section>; }

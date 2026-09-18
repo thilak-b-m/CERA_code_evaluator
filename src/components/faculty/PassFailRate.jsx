@@ -1,0 +1,1 @@
+export default function PassFailRate({ pass = 86.4 }) { return <div><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}><span>Pass rate</span><strong style={{ color: 'var(--success)' }}>{pass}%</strong></div><div className="progress" style={{ marginTop: 8 }}><span style={{ width: `${pass}%`, background: 'var(--success)' }} /></div></div>; }

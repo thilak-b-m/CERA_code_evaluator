@@ -1,0 +1,1 @@
+export default function Tabs({ items = [], active, onChange }) { return <div className="segmented">{items.map(item => <button key={item} className={active === item ? 'active' : ''} onClick={() => onChange?.(item)}>{item}</button>)}</div>; }

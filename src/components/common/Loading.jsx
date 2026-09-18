@@ -1,0 +1,1 @@
+export default function Loading({ label = 'Loading workspace' }) { return <div className="empty" role="status"><div className="progress" style={{ maxWidth: 180, margin: '0 auto 14px' }}><span style={{ width: '58%' }} /></div><span>{label}</span></div>; }

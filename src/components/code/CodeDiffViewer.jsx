@@ -1,0 +1,1 @@
+export default function CodeDiffViewer({ before = '', after = '' }) { return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><pre className="code">{before}</pre><pre className="code">{after}</pre></div>; }
