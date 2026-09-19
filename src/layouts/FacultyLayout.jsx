@@ -181,7 +181,7 @@ export default function FacultyLayout({
     notify('Signed out of CERA');
 
     setTimeout(() => {
-      setLocation('/login');
+      setLocation('/dashboard');
     }, 300);
   };
 

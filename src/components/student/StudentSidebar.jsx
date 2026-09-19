@@ -12,7 +12,7 @@ import {
   ChevronLeft,
   X,
 } from 'lucide-react';
-import ceraLogo from '../../../assets/images/cera-logo.png';
+import ceraLogo from '../../assets/images/cera-logo.png';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 

@@ -1,45 +1,18 @@
-import { AppProvider, useApp } from './context/AppContext.jsx';
-import FacultyLogin from './pages/faculty/Login.jsx';
-import FacultyLayout from './layouts/FacultyLayout.jsx';
-import FacultyRoutes from './routes/FacultyRoutes.jsx';
-import { Route, Switch } from 'wouter';
 import { BrowserRouter } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check } from 'lucide-react';
-import StudentRoutes from './student/routes/StudentRoutes.jsx';
-import { AuthProvider as StudentAuthProvider } from './student/context/AuthContext.jsx';
-import { ThemeProvider as StudentThemeProvider } from './student/context/ThemeContext.jsx';
 
-function StudentExperience() {
-  return (
-    <StudentAuthProvider>
-      <StudentThemeProvider>
-        <StudentRoutes />
-      </StudentThemeProvider>
-    </StudentAuthProvider>
-  );
-}
+import { AppProvider, useApp } from './context/AppContext.jsx';
+import { AuthProvider } from './context/AuthContext.jsx';
+import { ThemeProvider } from './context/ThemeContext.jsx';
+import AppRoutes from './routes/AppRoutes.jsx';
 
 function AppContent() {
   const { toast } = useApp();
 
   return (
     <>
-      <Switch>
-        <Route path="/login">
-          <FacultyLogin />
-        </Route>
-
-        <Route path="/student/*">
-          <StudentExperience />
-        </Route>
-
-        <Route>
-          <FacultyLayout>
-            <FacultyRoutes />
-          </FacultyLayout>
-        </Route>
-      </Switch>
+      <AppRoutes />
 
       <AnimatePresence>
         {toast && (
@@ -69,9 +42,13 @@ function AppContent() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppProvider>
-        <AppContent />
-      </AppProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          <AppProvider>
+            <AppContent />
+          </AppProvider>
+        </ThemeProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

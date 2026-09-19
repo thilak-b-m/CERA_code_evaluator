@@ -1,1 +1,14 @@
-export default function Card({ title, kicker, action, children }) { return <section className="panel" style={{ overflow: 'hidden' }}><div className="panel-header"><div><div className="panel-title">{title}</div>{kicker && <div className="panel-kicker">{kicker}</div>}</div>{action}</div>{children}</section>; }
+import { motion } from 'framer-motion';
+
+export default function Card({ children, className = '', hover = false, onClick, ...props }) {
+  return (
+    <motion.div
+      whileHover={hover ? { y: -2, transition: { duration: 0.2 } } : undefined}
+      onClick={onClick}
+      className={`bg-cera-card border border-cera-border rounded-xl ${className}`}
+      {...props}
+    >
+      {children}
+    </motion.div>
+  );
+}
