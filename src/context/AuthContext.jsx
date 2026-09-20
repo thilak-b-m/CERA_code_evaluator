@@ -1,83 +1,75 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { currentUser } from '../data/studentMockData.js';
+import { authService } from '../services/authService.js';
 
 const AuthContext = createContext(null);
 
-function getStoredUser() {
+function getStoredSession() {
   try {
-    const localUser = localStorage.getItem('cera-user');
-    if (localUser) {
-      return JSON.parse(localUser);
-    }
+    const stored = localStorage.getItem('cera-session') || sessionStorage.getItem('cera-session');
+    return stored ? JSON.parse(stored) : { user: null, token: null };
   } catch (error) {
-    console.error('Error reading stored user:', error);
+    console.error('Error reading stored auth session:', error);
+    return { user: null, token: null };
   }
-
-  return currentUser || null;
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => getStoredUser());
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    const saved = localStorage.getItem('cera-auth');
-    const sessionSaved = sessionStorage.getItem('cera-auth');
-    return saved === 'true' || sessionSaved === 'true' || Boolean(currentUser);
-  });
+  const [session, setSession] = useState(() => getStoredSession());
+  const { user, token } = session;
+  const isAuthenticated = Boolean(user && token);
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('cera-user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('cera-user');
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      localStorage.setItem('cera-auth', 'true');
-    } else {
-      localStorage.removeItem('cera-auth');
-      sessionStorage.removeItem('cera-auth');
+    if (!isAuthenticated) {
+      localStorage.removeItem('cera-session');
+      sessionStorage.removeItem('cera-session');
     }
   }, [isAuthenticated]);
 
-  const signIn = (profile) => {
-    setUser(profile);
-    setIsAuthenticated(true);
+  const signIn = (profile, nextToken = 'session-token', remember = true) => {
+    const nextSession = { user: profile, token: nextToken };
+    const storage = remember ? localStorage : sessionStorage;
+    const otherStorage = remember ? sessionStorage : localStorage;
+
+    setSession(nextSession);
+    storage.setItem('cera-session', JSON.stringify(nextSession));
+    otherStorage.removeItem('cera-session');
   };
 
+  const login = async (credentials, remember = true) => {
+    const result = await authService.signIn(credentials);
+    signIn(result.user, result.token, remember);
+    return result;
+  };
+
+  const signup = async (details) => authService.signUp({ ...details, role: 'student' });
+
   const signOut = () => {
-    setUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem('cera-user');
+    setSession({ user: null, token: null });
+    localStorage.removeItem('cera-session');
+    sessionStorage.removeItem('cera-session');
     localStorage.removeItem('cera-auth');
     sessionStorage.removeItem('cera-auth');
+    localStorage.removeItem('cera-user');
+    sessionStorage.removeItem('cera-user');
+    localStorage.removeItem('cera-user-email');
     sessionStorage.removeItem('cera-user-email');
   };
 
-  const login = (profile) => {
-    signIn(profile);
-  };
-
-  const logout = () => {
+  const logout = async () => {
+    await authService.signOut();
     signOut();
   };
 
   const updateUser = (updatedData) => {
-    setUser((prev) => ({ ...(prev || currentUser || {}), ...updatedData }));
+    setSession((previous) => ({
+      ...previous,
+      user: { ...(previous.user || {}), ...updatedData },
+    }));
   };
 
   const value = useMemo(
-    () => ({
-      user,
-      isAuthenticated,
-      signIn,
-      signOut,
-      login,
-      logout,
-      updateUser,
-    }),
-    [user, isAuthenticated]
+    () => ({ user, token, isAuthenticated, signIn, signOut, login, signup, logout, updateUser }),
+    [user, token, isAuthenticated]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

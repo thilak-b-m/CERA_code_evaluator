@@ -1,2 +1,16 @@
 import { Redirect } from 'wouter';
-export default function ProtectedRoute({ authenticated = true, children }) { return authenticated ? children : <Redirect to="/dashboard" />; }
+import { useAuth } from '../context/AuthContext.jsx';
+
+export default function ProtectedRoute({ roles, children }) {
+	const { isAuthenticated, user } = useAuth();
+
+	if (!isAuthenticated) {
+		return <Redirect to="/login" />;
+	}
+
+	if (roles && !roles.includes(user?.role)) {
+		return <Redirect to={user?.role === 'student' ? '/student/dashboard' : '/dashboard'} />;
+	}
+
+	return children;
+}

@@ -38,13 +38,29 @@
 }
 
 .light {
-  --bg: #F3F5FB;
+  --bg: #F8FAFC;
   --card: #FFFFFF;
-  --surface: #E9ECF8;
+  --surface: #F1F5F9;
   --text: #11182B;
   --muted: #53627D;
   --border: rgba(49,61,91,.15);
   --subtle: rgba(99,102,241,.08);
+  --color-cera-bg: var(--bg);
+  --color-cera-card: var(--card);
+  --color-cera-elevated: var(--surface);
+  --color-cera-border: var(--border);
+  --color-cera-text: var(--text);
+  --color-cera-muted: var(--muted);
+}
+
+.light .nav-item-active {
+  color: #4338CA;
+  background: #E0E7FF;
+}
+
+.light .sidebar-link.active {
+  color: #4338CA;
+  background: #E0E7FF;
 }
 
 * {
@@ -776,6 +792,28 @@ tr:hover td {
   font: 12px/1.75 var(--app-font-mono);
   overflow-x: auto;
   white-space: pre;
+}
+
+.light .code {
+  background: #FFFFFF;
+  color: #1E293B;
+  border: 1px solid var(--border);
+}
+
+.light .code .kw {
+  color: #4338CA;
+}
+
+.light .code .fn {
+  color: #0E7490;
+}
+
+.light .code .str {
+  color: #15803D;
+}
+
+.light .code .num {
+  color: #B45309;
 }
 
 .code .kw {

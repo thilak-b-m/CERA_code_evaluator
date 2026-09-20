@@ -26,6 +26,7 @@ import {
 
 import ceraLogo from '../assets/images/cera-logo.png';
 import { useApp } from '../context/AppContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { getSubmissions } from '../services/submissionService.js';
 import { getEvaluation } from '../services/evaluationService.js';
 
@@ -80,6 +81,7 @@ export default function FacultyLayout({
     notify,
     profile,
   } = useApp();
+  const { logout } = useAuth();
 
   const [location, setLocation] =
     useLocation();
@@ -165,24 +167,10 @@ export default function FacultyLayout({
     event.target.value = '';
   };
 
-  const handleSignOut = () => {
-    localStorage.removeItem('cera-auth');
-    localStorage.removeItem(
-      'cera-user-email'
-    );
-
-    sessionStorage.removeItem(
-      'cera-auth'
-    );
-    sessionStorage.removeItem(
-      'cera-user-email'
-    );
-
+  const handleSignOut = async () => {
+    await logout();
     notify('Signed out of CERA');
-
-    setTimeout(() => {
-      setLocation('/dashboard');
-    }, 300);
+    setLocation('/login');
   };
 
   return (
