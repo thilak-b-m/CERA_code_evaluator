@@ -60,7 +60,7 @@ export default function AssignmentCard({ assignment, compact = false }) {
             e.stopPropagation();
             navigate(`/student/assignments/${assignment.id}`);
           }}
-          className="text-cera-highlight hover:text-cyan-300 text-sm font-medium flex items-center gap-1 transition-colors"
+          className="text-cera-highlight hover:text-cera-primary text-sm font-medium flex items-center gap-1 transition-colors"
         >
           {assignment.status === 'Completed' ? 'View' : assignment.status === 'In Progress' ? 'Continue' : 'Start'}
           <ArrowRight size={14} />

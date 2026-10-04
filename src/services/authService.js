@@ -19,10 +19,17 @@ function getMockUser(email, role, name) {
 }
 
 async function request(path, options) {
-	const response = await fetch(`${apiBaseUrl}${path}`, {
+	const response = await fetch(`${apiBaseUrl || ''}${path}`, {
 		headers: { 'Content-Type': 'application/json' },
 		...options,
 	});
+	const contentType = response.headers.get('content-type') || '';
+	if (!contentType.includes('application/json')) {
+		const error = new Error('Unexpected response from authentication service.');
+		error.code = response.status;
+		throw error;
+	}
+
 	const body = await response.json().catch(() => ({}));
 
 	if (!response.ok) {
@@ -53,23 +60,18 @@ export const authService = {
 		};
 	},
 
-	async signUp({ name, email, password }) {
-		if (apiBaseUrl) {
-			return request('/api/auth/signup', {
-				method: 'POST',
-				body: JSON.stringify({ name, email, password, role: 'student' }),
-			});
-		}
+	async forgotPassword(email) {
+		return request('/api/auth/forgot-password', {
+			method: 'POST',
+			body: JSON.stringify({ email }),
+		});
+	},
 
-		const normalizedEmail = email.toLowerCase();
-		if (mockUsers.has(normalizedEmail)) {
-			const error = new Error('Email already registered.');
-			error.code = 'EMAIL_EXISTS';
-			throw error;
-		}
-
-		mockUsers.set(normalizedEmail, { name, role: 'student' });
-		return { user: getMockUser(normalizedEmail, 'student', name) };
+	async resetPassword(token, password) {
+		return request('/api/auth/reset-password', {
+			method: 'POST',
+			body: JSON.stringify({ token, password }),
+		});
 	},
 
 	signOut: async () => true,

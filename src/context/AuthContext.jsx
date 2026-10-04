@@ -41,7 +41,8 @@ export function AuthProvider({ children }) {
     return result;
   };
 
-  const signup = async (details) => authService.signUp({ ...details, role: 'student' });
+  const forgotPassword = async (email) => authService.forgotPassword(email);
+  const resetPassword = async (token, password) => authService.resetPassword(token, password);
 
   const signOut = () => {
     setSession({ user: null, token: null });
@@ -68,7 +69,7 @@ export function AuthProvider({ children }) {
   };
 
   const value = useMemo(
-    () => ({ user, token, isAuthenticated, signIn, signOut, login, signup, logout, updateUser }),
+    () => ({ user, token, isAuthenticated, signIn, signOut, login, forgotPassword, resetPassword, logout, updateUser }),
     [user, token, isAuthenticated]
   );
 

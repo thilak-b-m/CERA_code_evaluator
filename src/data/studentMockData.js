@@ -49,9 +49,9 @@ export const scoreProgression = [
 ];
 
 export const assignmentCompletion = [
-  { name: 'Completed', value: 18, color: '#10B981' },
-  { name: 'In Progress', value: 4, color: '#F59E0B' },
-  { name: 'Not Started', value: 2, color: '#6366F1' },
+  { name: 'Completed', value: 18, color: 'var(--success)' },
+  { name: 'In Progress', value: 4, color: 'var(--warning)' },
+  { name: 'Not Started', value: 2, color: 'var(--primary)' },
 ];
 
 export const upcomingAssignments = [

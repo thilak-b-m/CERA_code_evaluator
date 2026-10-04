@@ -17,8 +17,8 @@ export function ProgressChart({ data }) {
       <AreaChart data={data}>
         <defs>
           <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
+            <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -28,7 +28,7 @@ export function ProgressChart({ data }) {
         <Area
           type="monotone"
           dataKey="score"
-          stroke="#6366F1"
+          stroke="var(--primary)"
           strokeWidth={2}
           fill="url(#scoreGradient)"
         />
@@ -45,7 +45,7 @@ export function ActivityBarChart({ data }) {
         <XAxis dataKey="day" stroke="var(--muted)" fontSize={12} />
         <YAxis stroke="var(--muted)" fontSize={12} />
         <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'var(--surface)' }} />
-        <Bar dataKey="problems" fill="#22D3EE" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="problems" fill="var(--accent)" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -62,9 +62,9 @@ export function ScoreLineChart({ data }) {
         <Line
           type="monotone"
           dataKey="score"
-          stroke="#10B981"
+          stroke="var(--success)"
           strokeWidth={2}
-          dot={{ fill: '#10B981', r: 4 }}
+          dot={{ fill: 'var(--success)', r: 4 }}
           activeDot={{ r: 6 }}
         />
       </LineChart>

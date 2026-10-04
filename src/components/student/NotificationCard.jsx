@@ -55,7 +55,7 @@ export default function NotificationCard({ notification, onMarkRead, onDelete })
               {!notification.read && (
                 <button
                   onClick={() => onMarkRead(notification.id)}
-                  className="text-xs text-cera-highlight hover:text-cyan-300 transition-colors"
+                  className="text-xs text-cera-highlight hover:text-cera-primary transition-colors"
                 >
                   Mark as read
                 </button>

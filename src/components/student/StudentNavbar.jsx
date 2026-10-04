@@ -1,66 +1,109 @@
 import { useNavigate } from 'react-router-dom';
-import { Menu, Search, Bell } from 'lucide-react';
+import { Menu, Search, Bell, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { notifications } from '../../data/studentMockData';
 
-export default function StudentNavbar({ title, searchValue, onSearchChange, searchPlaceholder = 'Search...' }) {
-  const { toggleMobileSidebar } = useTheme();
+const searchablePages = [
+  { label: 'Dashboard', path: '/student/dashboard' },
+  { label: 'Assignments', path: '/student/assignments' },
+  { label: 'Submissions', path: '/student/submissions' },
+  { label: 'Results', path: '/student/results' },
+  { label: 'Leaderboard', path: '/student/leaderboard' },
+  { label: 'Notifications', path: '/student/notifications' },
+  { label: 'Profile', path: '/student/profile' },
+];
+
+export default function StudentNavbar({ title }) {
+  const { theme, setTheme, toggleMobileSidebar } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter((notification) => !notification.read).length;
 
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const handleGlobalSearch = (event) => {
+    if (event.key !== 'Enter') return;
+
+    const query = event.target.value.trim().toLowerCase();
+    if (!query) return;
+
+    const match = searchablePages.find(({ label }) => label.toLowerCase().startsWith(query))
+      || searchablePages.find(({ label }) => label.toLowerCase().includes(query));
+
+    if (match) {
+      navigate(match.path);
+      event.target.value = '';
+    }
+  };
 
   return (
-    <header className="sticky top-0 z-30 bg-cera-bg/80 backdrop-blur-md border-b border-cera-border">
-      <div className="flex items-center justify-between px-4 lg:px-6 py-3.5">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={toggleMobileSidebar}
-            className="lg:hidden text-cera-muted hover:text-cera-text transition-colors p-1.5 rounded-lg hover:bg-cera-elevated"
-          >
-            <Menu size={22} />
-          </button>
-          <div>
-            <h2 className="text-lg font-semibold text-cera-text">{title || `${greeting}, ${user?.name?.split(' ')[0] || 'Student'}`}</h2>
-            <p className="text-xs text-cera-muted hidden sm:block">{today}</p>
-          </div>
+    <header className="topbar">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          className="icon-btn mobile-menu"
+          onClick={toggleMobileSidebar}
+          aria-label="Open menu"
+        >
+          <Menu size={19} />
+        </button>
+        <div className="text-xs text-cera-muted capitalize">
+          Workspace
+          <span className="mx-2 opacity-50">/</span>
+          <span className="text-cera-text">{title.toLowerCase()}</span>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <div className="search-box hide-mobile">
+          <Search size={15} />
+          <input
+            className="input"
+            placeholder="Search CERA..."
+            aria-label="Search CERA"
+            onKeyDown={handleGlobalSearch}
+          />
         </div>
 
-        <div className="flex items-center gap-3">
-          {onSearchChange && (
-            <div className="relative hidden md:block">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-cera-muted pointer-events-none" />
-              <input
-                type="text"
-                value={searchValue || ''}
-                onChange={(e) => onSearchChange(e.target.value)}
-                placeholder={searchPlaceholder}
-                className="input-base pl-10 w-56"
-              />
-            </div>
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => navigate('/student/notifications')}
+          aria-label="Notifications"
+        >
+          <Bell size={18} />
+          {unreadCount > 0 && (
+            <span
+              style={{
+                position: 'absolute',
+                margin: '-18px 0 0 16px',
+                width: 6,
+                height: 6,
+                borderRadius: 6,
+                background: 'var(--accent)',
+              }}
+            />
           )}
-          <button
-            onClick={() => navigate('/student/notifications')}
-            className="relative text-cera-muted hover:text-cera-text transition-colors p-2 rounded-lg hover:bg-cera-elevated"
-          >
-            <Bell size={20} />
-            {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-cera-error rounded-full text-[10px] font-bold text-white flex items-center justify-center">
-                {unreadCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => navigate('/student/profile')}
-            className="w-9 h-9 rounded-full bg-cera-secondary flex items-center justify-center text-white font-semibold text-sm hover:ring-2 hover:ring-cera-secondary/40 transition-all"
-          >
-            {user?.name?.charAt(0) || 'A'}
-          </button>
-        </div>
+        </button>
+
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          aria-label="Toggle theme"
+          data-testid="button-theme-toggle"
+        >
+          {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+        </button>
+
+        <button
+          type="button"
+          className="avatar"
+          style={{ width: 33, height: 33, border: 0, cursor: 'pointer' }}
+          onClick={() => navigate('/student/profile')}
+          aria-label="Open profile"
+        >
+          {(user?.name || 'Student').split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()}
+        </button>
       </div>
     </header>
   );

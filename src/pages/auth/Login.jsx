@@ -62,10 +62,6 @@ export default function Login() {
     }
   };
 
-  const handleForgotPassword = () => {
-    notify('Password reset will be available after backend integration');
-  };
-
   return (
     <div className="auth-layout">
       <div className="auth-visual">
@@ -181,10 +177,20 @@ export default function Login() {
               />
             </label>
 
-            <label>
-              <span className="label">Password</span>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <label className="label" htmlFor="login-password">Password</label>
+                <button
+                  type="button"
+                  onClick={() => setLocation('/forgot-password')}
+                  style={{ border: 0, background: 'transparent', color: '#A5B4FC', padding: 0, cursor: 'pointer', fontSize: 11, marginBottom: 7 }}
+                >
+                  Forgot Password?
+                </button>
+              </div>
               <div style={{ position: 'relative' }}>
                 <input
+                  id="login-password"
                   className="input"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
@@ -218,7 +224,7 @@ export default function Login() {
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-            </label>
+            </div>
 
             {error && (
               <div
@@ -254,19 +260,6 @@ export default function Login() {
                 Keep me signed in
               </label>
 
-              <button
-                type="button"
-                onClick={handleForgotPassword}
-                style={{
-                  border: 0,
-                  background: 'transparent',
-                  color: '#A5B4FC',
-                  padding: 0,
-                  cursor: 'pointer',
-                }}
-              >
-                Forgot password?
-              </button>
             </div>
 
             <button
@@ -281,12 +274,6 @@ export default function Login() {
             </button>
           </div>
 
-          <p style={{ color: 'var(--muted)', fontSize: 11, textAlign: 'center', marginTop: 30 }}>
-            Need an account?{' '}
-            <button type="button" onClick={() => setLocation('/signup')} style={{ border: 0, background: 'transparent', color: '#A5B4FC', cursor: 'pointer', padding: 0 }}>
-              Create a student account
-            </button>
-          </p>
         </form>
       </div>
     </div>

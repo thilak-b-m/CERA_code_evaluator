@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite --config vite.config.js --host 0.0.0.0",
     "build": "vite build --config vite.config.js",
-    "serve": "vite preview --config vite.config.js --host 0.0.0.0"
+    "serve": "vite preview --config vite.config.js --host 0.0.0.0",
+    "backend:dev": "npm --prefix backend run dev",
+    "backend:start": "npm --prefix backend start",
+    "backend:check": "npm --prefix backend run check"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

@@ -8,7 +8,7 @@ import Loading from '../../components/common/Loading';
 import { studentService } from '../../services/studentService';
 
 const statusOptions = [
-  { value: 'all', label: 'All Statuses' },
+  { value: 'all', label: 'Status' },
   { value: 'Not Started', label: 'Not Started' },
   { value: 'In Progress', label: 'In Progress' },
   { value: 'Submitted', label: 'Submitted' },
@@ -17,14 +17,14 @@ const statusOptions = [
 ];
 
 const difficultyOptions = [
-  { value: 'all', label: 'All Difficulties' },
+  { value: 'all', label: 'Difficulty' },
   { value: 'Easy', label: 'Easy' },
   { value: 'Medium', label: 'Medium' },
   { value: 'Hard', label: 'Hard' },
 ];
 
 const subjectOptions = [
-  { value: 'all', label: 'All Subjects' },
+  { value: 'all', label: 'Subjects' },
   { value: 'Data Structures', label: 'Data Structures' },
   { value: 'Algorithms', label: 'Algorithms' },
   { value: 'Databases', label: 'Databases' },

@@ -2,7 +2,6 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import StudentSidebar from '../components/student/StudentSidebar';
 import StudentNavbar from '../components/student/StudentNavbar';
-import { useTheme } from '../context/ThemeContext';
 
 const pageTitles = {
   '/student/dashboard': 'Dashboard',
@@ -16,19 +15,16 @@ const pageTitles = {
 
 export default function StudentLayout() {
   const location = useLocation();
-  const { sidebarCollapsed } = useTheme();
 
   const currentPath = '/' + location.pathname.split('/').slice(0, 3).join('/');
   const title = pageTitles[currentPath] || pageTitles[location.pathname] || 'Dashboard';
 
   return (
-    <div className="min-h-screen bg-cera-bg">
+    <div className="app-shell">
       <StudentSidebar />
-      <div
-        className={`transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64'}`}
-      >
-        <StudentNavbar title={location.pathname === '/student/dashboard' ? null : title} />
-        <main className="p-4 lg:p-6">
+      <main className="main-content">
+        <StudentNavbar title={title} />
+        <div className="content">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -40,8 +36,8 @@ export default function StudentLayout() {
               <Outlet />
             </motion.div>
           </AnimatePresence>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

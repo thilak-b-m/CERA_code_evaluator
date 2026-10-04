@@ -1,7 +1,8 @@
 import { Route, Switch } from 'wouter';
 
 import Login from '../pages/auth/Login.jsx';
-import Signup from '../pages/auth/Signup.jsx';
+import ForgotPassword from '../pages/auth/ForgotPassword.jsx';
+import ResetPassword from '../pages/auth/ResetPassword.jsx';
 import FacultyLayout from '../layouts/FacultyLayout.jsx';
 import FacultyRoutes from './FacultyRoutes.jsx';
 import ProtectedRoute from './ProtectedRoute.jsx';
@@ -18,8 +19,12 @@ export default function AppRoutes() {
         <Login />
       </Route>
 
-      <Route path="/signup">
-        <Signup />
+      <Route path="/forgot-password">
+        <ForgotPassword />
+      </Route>
+
+      <Route path="/reset-password">
+        <ResetPassword />
       </Route>
 
       <Route path="/student/*">

@@ -57,9 +57,17 @@ export default function Dashboard() {
     { label: 'Leaderboard', icon: Trophy, path: '/student/leaderboard', color: 'text-cera-secondary bg-cera-secondary/10' },
   ];
 
+  const dashboardIntro = (
+    <div>
+      <h1 className="text-2xl font-bold text-cera-text">Code Execution, Review &amp; Assessment</h1>
+      <p className="text-sm text-cera-muted mt-1">Learn. Execute. Excel.</p>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="space-y-6">
+        {dashboardIntro}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
@@ -73,6 +81,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {dashboardIntro}
       {/* Stats */}
       <DashboardStats stats={stats} />
 

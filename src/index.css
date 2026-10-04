@@ -41,16 +41,28 @@
   --bg: #F8FAFC;
   --card: #FFFFFF;
   --surface: #F1F5F9;
+  --primary: #4F46E5;
+  --secondary: #6D28D9;
+  --accent: #0E7490;
   --text: #11182B;
   --muted: #53627D;
+  --success: #047857;
+  --warning: #B45309;
+  --error: #BE123C;
   --border: rgba(49,61,91,.15);
   --subtle: rgba(99,102,241,.08);
   --color-cera-bg: var(--bg);
   --color-cera-card: var(--card);
   --color-cera-elevated: var(--surface);
   --color-cera-border: var(--border);
+  --color-cera-primary: var(--primary);
+  --color-cera-secondary: var(--secondary);
+  --color-cera-highlight: var(--accent);
   --color-cera-text: var(--text);
   --color-cera-muted: var(--muted);
+  --color-cera-success: var(--success);
+  --color-cera-warning: var(--warning);
+  --color-cera-error: var(--error);
 }
 
 .light .nav-item-active {
