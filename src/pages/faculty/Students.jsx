@@ -5,10 +5,12 @@ import {
   Download,
   Search,
   Filter,
+  UserPlus,
 } from 'lucide-react';
 
 import Page from '../../components/common/Page.jsx';
 import Card from '../../components/common/Card.jsx';
+import Modal from '../../components/common/Modal.jsx';
 import Avatar from '../../components/faculty/Avatar.jsx';
 import StatusBadge from '../../components/common/StatusBadge.jsx';
 
@@ -111,9 +113,8 @@ export default function Students() {
    * the service boundary instead of importing
    * mock data directly.
    */
-  const allStudents = useMemo(
-    () => studentService.list(),
-    []
+  const [allStudents, setAllStudents] = useState(
+    () => [...studentService.list()]
   );
 
   const [search, setSearch] =
@@ -121,6 +122,47 @@ export default function Students() {
 
   const [studentFilter, setStudentFilter] =
     useState('all');
+
+  const [isAddModalOpen, setIsAddModalOpen] =
+    useState(false);
+
+  const [formError, setFormError] =
+    useState('');
+
+  const [studentForm, setStudentForm] = useState({
+    name: '',
+    usn: '',
+    email: '',
+    year: '1',
+  });
+
+  const updateStudentForm = (event) => {
+    const { name, value } = event.target;
+    setStudentForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const handleAddStudent = (event) => {
+    event.preventDefault();
+    setFormError('');
+
+    try {
+      studentService.addStudent(studentForm);
+      setAllStudents([...studentService.list()]);
+      setIsAddModalOpen(false);
+      setStudentForm({
+        name: '',
+        usn: '',
+        email: '',
+        year: '1',
+      });
+      notify(`${studentForm.name.trim()} added to the roster`);
+    } catch (error) {
+      setFormError(error.message);
+    }
+  };
 
 
   /*
@@ -302,16 +344,128 @@ export default function Students() {
       title="Students"
       subtitle="See progress, patterns, and where a small nudge will help."
       actions={
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={handleExport}
-        >
-          <Download size={14} />
-          Export roster
-        </button>
+        <>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              setFormError('');
+              setIsAddModalOpen(true);
+            }}
+          >
+            <UserPlus size={14} />
+            Add student
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={handleExport}
+          >
+            <Download size={14} />
+            Export roster
+          </button>
+        </>
       }
     >
+
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title="Add student"
+      >
+        <form onSubmit={handleAddStudent}>
+          <div style={{ display: 'grid', gap: 15 }}>
+            <label>
+              <span className="label">Student name</span>
+              <input
+                className="input"
+                name="name"
+                value={studentForm.name}
+                onChange={updateStudentForm}
+                placeholder="Enter full name"
+                autoComplete="name"
+                required
+                autoFocus
+              />
+            </label>
+
+            <label>
+              <span className="label">USN</span>
+              <input
+                className="input"
+                name="usn"
+                value={studentForm.usn}
+                onChange={updateStudentForm}
+                placeholder="e.g. 1XX23CS001"
+                required
+              />
+            </label>
+
+            <label>
+              <span className="label">Email</span>
+              <input
+                className="input"
+                type="email"
+                name="email"
+                value={studentForm.email}
+                onChange={updateStudentForm}
+                placeholder="student@university.edu"
+                autoComplete="email"
+                required
+              />
+            </label>
+
+            <label>
+              <span className="label">Year</span>
+              <select
+                className="select"
+                name="year"
+                value={studentForm.year}
+                onChange={updateStudentForm}
+              >
+                {[1, 2, 3, 4].map((year) => (
+                  <option key={year} value={year}>
+                    Year {year}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {formError && (
+              <p
+                role="alert"
+                style={{
+                  margin: 0,
+                  color: 'var(--error)',
+                  fontSize: 12,
+                }}
+              >
+                {formError}
+              </p>
+            )}
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: 8,
+                paddingTop: 4,
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setIsAddModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary">
+                Invite
+              </button>
+            </div>
+          </div>
+        </form>
+      </Modal>
 
       {/* TOOLBAR */}
 
@@ -439,6 +593,19 @@ export default function Students() {
                           >
                             {student.email}
                           </small>
+
+                          {student.year && (
+                            <small
+                              style={{
+                                display: 'block',
+                                color: 'var(--muted)',
+                                fontWeight: 400,
+                                marginTop: 2,
+                              }}
+                            >
+                              Year {student.year}
+                            </small>
+                          )}
                         </span>
                       </Link>
                     </td>

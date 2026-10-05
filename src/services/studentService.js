@@ -29,6 +29,50 @@ export const studentService = {
     return students;
   },
 
+  addStudent({ name, usn, email, year }) {
+    const normalizedUsn = usn.trim().toUpperCase();
+    const normalizedEmail = email.trim().toLowerCase();
+    const duplicateUsn = students.some(
+      (student) => student.id.toLowerCase() === normalizedUsn.toLowerCase()
+    );
+    const duplicateEmail = students.some(
+      (student) => student.email.toLowerCase() === normalizedEmail
+    );
+
+    if (duplicateUsn) {
+      throw new Error('A student with this USN already exists.');
+    }
+
+    if (duplicateEmail) {
+      throw new Error('A student with this email already exists.');
+    }
+
+    const initials = name
+      .trim()
+      .split(/\s+/)
+      .map((part) => part[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+    const colors = ['#0E7490', '#10B981', '#F59E0B', '#6366F1', '#E11D48'];
+    const student = {
+      id: normalizedUsn,
+      usn: normalizedUsn,
+      name: name.trim(),
+      email: normalizedEmail,
+      year,
+      initials,
+      score: 0,
+      labs: '0 / 12',
+      status: 'Needs review',
+      last: 'Just added',
+      color: colors[students.length % colors.length],
+    };
+
+    students.unshift(student);
+    return student;
+  },
+
   async getDashboardStats() {
     await delay(300);
     return dashboardStats;
