@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation } from 'wouter';
+import { useNavigate } from 'react-router-dom';
 
 import {
   ArrowRight,
@@ -16,7 +16,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 export default function Login() {
   const { notify, theme, setTheme } = useApp();
   const { login } = useAuth();
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -54,9 +54,17 @@ export default function Login() {
         keepSignedIn
       );
       notify('Signed in to CERA successfully');
-      setLocation(result.user.role === 'student' ? '/student/dashboard' : '/dashboard');
+      navigate(result.user.role === 'student' ? '/student/dashboard' : '/dashboard');
     } catch (requestError) {
-      setError(requestError.code === 401 ? 'Invalid email or password.' : 'Unable to sign in. Please try again.');
+      if (requestError.code === 401) {
+        setError('Invalid email or password.');
+      } else if (requestError.code === 404) {
+        setError('Authentication API not found. Make sure the backend is running and try again.');
+      } else if (!requestError.code) {
+        setError('Cannot reach the authentication service. Make sure the backend is running and try again.');
+      } else {
+        setError('Unable to sign in. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -180,13 +188,6 @@ export default function Login() {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <label className="label" htmlFor="login-password">Password</label>
-                <button
-                  type="button"
-                  onClick={() => setLocation('/forgot-password')}
-                  style={{ border: 0, background: 'transparent', color: '#A5B4FC', padding: 0, cursor: 'pointer', fontSize: 11, marginBottom: 7 }}
-                >
-                  Forgot Password?
-                </button>
               </div>
               <div style={{ position: 'relative' }}>
                 <input

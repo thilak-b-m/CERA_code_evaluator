@@ -1,1 +1,0 @@
-export default function ReportGenerator({ onGenerate }) { return <button className="btn btn-primary" onClick={onGenerate}>Generate report</button>; }

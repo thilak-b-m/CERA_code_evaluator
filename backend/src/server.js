@@ -1,6 +1,17 @@
 import app from './app.js';
 import { closeDatabaseConnection, connectToDatabase } from './config/database.js';
 import { config } from './config/env.js';
+import { initializeAuthCollections } from './modules/auth/auth.service.js';
+import { initializeStudentCollections } from './modules/students/students.service.js';
+import { initializePromotionCollections } from './modules/students/students.service.js';
+import { initializeAssignmentCollections } from './modules/assignments/assignments.service.js';
+import { initializeSubmissionCollections } from './modules/submissions/submissions.service.js';
+import { initializeEvaluationCollections } from './modules/evaluations/evaluations.service.js';
+import { initializeAnalyticsCollections } from './modules/analytics/analytics.service.js';
+import { initializeNotificationCollections } from './modules/notifications/notifications.service.js';
+import { initializeReportCollections } from './modules/reports/reports.service.js';
+import { initializeLiveLabCollections } from './modules/live-lab/live-lab.service.js';
+import { initializeSecureAssessmentCollections } from './modules/secure-assessments/secure-assessments.service.js';
 
 function listen(port) {
   return new Promise((resolve, reject) => {
@@ -30,6 +41,10 @@ async function isExistingApiHealthy(port) {
 }
 
 async function startServer() {
+  if (Buffer.byteLength(config.jwtSecret, 'utf8') < 32) {
+    throw new Error('JWT_SECRET is required and must be at least 32 bytes long. Configure it in backend/.env.');
+  }
+
   let server;
   try {
     server = await listen(config.port);
@@ -43,7 +58,18 @@ async function startServer() {
   }
 
   try {
-    await connectToDatabase();
+    const database = await connectToDatabase();
+    await initializeAuthCollections(database);
+    await initializeStudentCollections(database);
+    await initializePromotionCollections(database);
+    await initializeAssignmentCollections(database);
+    await initializeSubmissionCollections(database);
+    await initializeEvaluationCollections(database);
+    await initializeAnalyticsCollections(database);
+    await initializeNotificationCollections(database);
+    await initializeReportCollections(database);
+    await initializeLiveLabCollections(database);
+    await initializeSecureAssessmentCollections(database);
   } catch (error) {
     await new Promise((resolve) => server.close(resolve));
     throw error;

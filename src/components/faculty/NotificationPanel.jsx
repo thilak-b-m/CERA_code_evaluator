@@ -1,1 +1,0 @@
-export default function NotificationPanel({ children }) { return <div className="panel">{children}</div>; }

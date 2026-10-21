@@ -1,10 +1,18 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Cpu } from 'lucide-react';
+import { Sparkles, UserCheck } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge';
+import { formatDate } from '../../utils/formatDate.js';
 
 export default function SubmissionCard({ submission }) {
   const navigate = useNavigate();
+
+  const evaluation = submission.evaluation;
+  const score = Number(evaluation?.score);
+  const maxScore = Number(submission.maxScore);
+  const hasScore = Number.isFinite(score) && Number.isFinite(maxScore) && maxScore > 0;
+  const percentage = hasScore ? Math.round((score / maxScore) * 100) : null;
+  const reviewedByAi = evaluation?.source === 'ollama';
 
   return (
     <motion.div
@@ -15,33 +23,46 @@ export default function SubmissionCard({ submission }) {
       className="bg-cera-card border border-cera-border rounded-xl p-5 cursor-pointer hover:border-cera-muted/30 transition-colors"
     >
       <div className="flex items-start justify-between mb-3">
-        <div>
-          <h3 className="font-semibold text-cera-text">{submission.assignment}</h3>
-          <p className="text-sm text-cera-muted mt-0.5">{submission.problem}</p>
+        <div className="min-w-0">
+          <h3 className="font-semibold text-cera-text truncate">{submission.assignment}</h3>
+          {submission.course && (
+            <p className="mt-0.5 text-sm text-cera-muted truncate">{submission.course}</p>
+          )}
         </div>
         <StatusBadge status={submission.status} className="ml-2 shrink-0" />
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
-        <span className="text-xs text-cera-muted bg-cera-elevated px-2.5 py-1 rounded-md font-mono">{submission.language}</span>
-        <span className={`text-xs px-2.5 py-1 rounded-md font-mono ${submission.score >= 90 ? 'text-cera-success bg-cera-success/10' : submission.score >= 70 ? 'text-cera-warning bg-cera-warning/10' : 'text-cera-error bg-cera-error/10'}`}>
-          {submission.score}/100
+        <span className="text-xs text-cera-muted bg-cera-elevated px-2.5 py-1 rounded-md font-mono">
+          {submission.language}
         </span>
-        <span className="text-xs text-cera-muted bg-cera-elevated px-2.5 py-1 rounded-md">
-          {submission.testCasesPassed}/{submission.totalTestCases} tests
-        </span>
+
+        {hasScore && (
+          <span className={`text-xs px-2.5 py-1 rounded-md font-mono ${
+            percentage >= 90
+              ? 'text-cera-success bg-cera-success/10'
+              : percentage >= 70
+                ? 'text-cera-warning bg-cera-warning/10'
+                : 'text-cera-error bg-cera-error/10'
+          }`}
+          >
+            {score}/{maxScore}
+          </span>
+        )}
+
+        {evaluation && (
+          <span className="flex items-center gap-1 text-xs text-cera-muted bg-cera-elevated px-2.5 py-1 rounded-md">
+            {reviewedByAi ? <Sparkles size={12} /> : <UserCheck size={12} />}
+            {reviewedByAi ? 'AI reviewed' : 'Faculty reviewed'}
+          </span>
+        )}
       </div>
 
       <div className="flex items-center justify-between text-xs text-cera-muted">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1">
-            <Clock size={12} /> {submission.executionTime}ms
-          </span>
-          <span className="flex items-center gap-1">
-            <Cpu size={12} /> {submission.memoryUsage}MB
-          </span>
-        </div>
-        <span>{new Date(submission.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+        <span>Submitted {formatDate(submission.submittedAt, { year: undefined })}</span>
+        {percentage !== null && (
+          <span className="font-medium text-cera-highlight">{percentage}%</span>
+        )}
       </div>
     </motion.div>
   );

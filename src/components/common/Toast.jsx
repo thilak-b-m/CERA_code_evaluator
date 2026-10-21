@@ -1,1 +1,0 @@
-export default function Toast({ message, onDismiss }) { if (!message) return null; return <div className="toast" role="status" onClick={onDismiss}>{message}</div>; }

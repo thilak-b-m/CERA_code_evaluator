@@ -1,209 +1,202 @@
 import { useState } from 'react';
-import { Check } from 'lucide-react';
-
+import {
+  Building2,
+  Edit3,
+  ExternalLink,
+  Link as LinkIcon,
+  Mail,
+  Save,
+  UserRound,
+  X,
+} from 'lucide-react';
 import Page from '../../components/common/Page.jsx';
 import Card from '../../components/common/Card.jsx';
+import Modal from '../../components/common/Modal.jsx';
 import Avatar from '../../components/faculty/Avatar.jsx';
 import { useApp } from '../../context/AppContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { authService } from '../../services/authService.js';
 
 export default function Profile() {
-  const {
-    notify,
-    profile,
-    setProfile,
-  } = useApp();
+  const { notify } = useApp();
+  const { user, token, updateUser } = useAuth();
+  const name = user?.name || 'Faculty member';
+  const initials = name.trim().split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [form, setForm] = useState(() => ({
+    name: user?.name || '',
+    email: user?.email || '',
+    bio: user?.bio || '',
+    skills: (user?.skills || []).join(', '),
+    github: user?.github || '',
+    linkedin: user?.linkedin || '',
+  }));
 
-  const [firstName, setFirstName] = useState(
-    profile.firstName
-  );
-
-  const [lastName, setLastName] = useState(
-    profile.lastName
-  );
-
-  const [email, setEmail] = useState(
-    profile.email
-  );
-
-  const [bio, setBio] = useState(
-    profile.bio ||
-      'Faculty member focused on algorithms, systems, and making code review a learning moment.'
-  );
-
-  const handleSave = () => {
-    const updatedProfile = {
-      ...profile,
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      email: email.trim(),
-      bio: bio.trim(),
-    };
-
-    setProfile(updatedProfile);
-
-    notify('Profile changes saved');
+  const openEditor = () => {
+    setForm({
+      name: user?.name || '',
+      email: user?.email || '',
+      bio: user?.bio || '',
+      skills: (user?.skills || []).join(', '),
+      github: user?.github || '',
+      linkedin: user?.linkedin || '',
+    });
+    setError('');
+    setIsEditing(true);
   };
 
-  const initials =
-    `${profile.firstName?.[0] || ''}${profile.lastName?.[0] || ''}`.toUpperCase();
+  const handleSave = async (event) => {
+    event.preventDefault();
+    setIsSaving(true);
+    setError('');
+    try {
+      const result = await authService.updateProfile({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        bio: form.bio.trim(),
+        skills: form.skills.split(',').map((skill) => skill.trim()).filter(Boolean),
+        github: form.github.trim(),
+        linkedin: form.linkedin.trim(),
+      }, token);
+      updateUser(result.user);
+      setIsEditing(false);
+      notify('Profile changes saved');
+    } catch (saveError) {
+      setError(saveError.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const details = [
+    { label: 'Name', value: name, icon: UserRound },
+    { label: 'Work email', value: user?.email, icon: Mail },
+    { label: 'Department', value: user?.department, icon: Building2 },
+  ].filter((item) => item.value);
 
   return (
     <Page
       title="Faculty profile"
-      subtitle="How your teaching workspace appears to your colleagues."
-      actions={
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={handleSave}
-        >
-          <Check size={14} />
-          Save changes
+      subtitle="Manage your account details and professional information."
+      actions={(
+        <button type="button" className="btn btn-primary" onClick={openEditor}>
+          <Edit3 size={14} />
+          Edit profile
         </button>
-      }
+      )}
     >
-      <div style={{ maxWidth: 850 }}>
+      <div className="grid max-w-4xl gap-5">
         <Card>
           <div className="panel-header">
             <div>
-              <div className="panel-title">
-                Profile details
-              </div>
-
-              <div className="panel-kicker">
-                Visible to faculty collaborators
-              </div>
+              <div className="panel-title">Faculty account</div>
+              <div className="panel-kicker">Your institution account and public profile details</div>
             </div>
           </div>
 
-          <div
-            style={{
-              padding: 20,
-              display: 'grid',
-              gap: 17,
-            }}
-          >
-            {/* Profile header */}
-            <div
-              style={{
-                display: 'flex',
-                gap: 15,
-                alignItems: 'center',
-                paddingBottom: 16,
-                borderBottom:
-                  '1px solid var(--border)',
-              }}
-            >
-              <Avatar color="#22D3EE">
-                {initials}
-              </Avatar>
-
+          <div className="grid gap-5 p-5">
+            <div className="flex items-center gap-4 border-b border-cera-border pb-5">
+              <Avatar color="#22D3EE">{initials}</Avatar>
               <div>
-                <div
-                  style={{
-                    fontWeight: 700,
-                  }}
-                >
-                  {profile.firstName}{' '}
-                  {profile.lastName}
-                </div>
-
-                <div
-                  style={{
-                    color: 'var(--muted)',
-                    fontSize: 11,
-                    marginTop: 3,
-                  }}
-                >
-                  Profile photo · initials fallback
-                </div>
+                <h2 className="font-semibold text-cera-text">{name}</h2>
+                <p className="mt-1 text-xs text-cera-muted">Faculty account</p>
               </div>
-
-              <button
-                type="button"
-                className="btn btn-ghost"
-                style={{
-                  marginLeft: 'auto',
-                }}
-                onClick={() =>
-                  notify('Photo selection opened')
-                }
-              >
-                Change photo
-              </button>
             </div>
 
-            {/* First and last name */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns:
-                  '1fr 1fr',
-                gap: 14,
-              }}
-            >
-              <label>
-                <span className="label">
-                  First name
-                </span>
-
-                <input
-                  className="input"
-                  value={firstName}
-                  onChange={(e) =>
-                    setFirstName(e.target.value)
-                  }
-                />
-              </label>
-
-              <label>
-                <span className="label">
-                  Last name
-                </span>
-
-                <input
-                  className="input"
-                  value={lastName}
-                  onChange={(e) =>
-                    setLastName(e.target.value)
-                  }
-                />
-              </label>
-            </div>
-
-            {/* Email */}
-            <label>
-              <span className="label">
-                Work email
-              </span>
-
-              <input
-                className="input"
-                type="email"
-                value={email}
-                onChange={(e) =>
-                  setEmail(e.target.value)
-                }
-              />
-            </label>
-
-            {/* Teaching bio */}
-            <label>
-              <span className="label">
-                Teaching bio
-              </span>
-
-              <textarea
-                className="textarea"
-                value={bio}
-                onChange={(e) =>
-                  setBio(e.target.value)
-                }
-              />
-            </label>
+            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {details.map(({ label, value, icon: Icon }) => (
+                <div key={label} className="flex min-w-0 items-center gap-3 rounded-lg bg-cera-elevated p-4">
+                  <Icon size={18} className="shrink-0 text-cera-muted" />
+                  <div className="min-w-0">
+                    <dt className="text-xs text-cera-muted">{label}</dt>
+                    <dd className="truncate text-sm font-medium text-cera-text">{value}</dd>
+                  </div>
+                </div>
+              ))}
+            </dl>
           </div>
         </Card>
+
+        <Card className="p-5">
+          <h2 className="mb-3 font-semibold text-cera-text">Teaching bio</h2>
+          <p className="text-sm leading-relaxed text-cera-muted">
+            {user?.bio || 'Add a short introduction about your teaching and areas of expertise.'}
+          </p>
+        </Card>
+
+        <Card className="p-5">
+          <h2 className="mb-3 font-semibold text-cera-text">Skills and areas of expertise</h2>
+          {user?.skills?.length ? (
+            <div className="flex flex-wrap gap-2">
+              {user.skills.map((skill) => (
+                <span key={skill} className="rounded-lg border border-cera-border bg-cera-elevated px-3 py-1.5 text-sm text-cera-text">
+                  {skill}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-cera-muted">Add skills and areas of expertise to your profile.</p>
+          )}
+        </Card>
+
+        {(user?.github || user?.linkedin) && (
+          <Card className="p-5">
+            <h2 className="mb-3 font-semibold text-cera-text">Professional links</h2>
+            <div className="flex flex-wrap gap-4">
+              {user.github && (
+                <a href={`https://${user.github}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-cera-muted hover:text-cera-text">
+                  <ExternalLink size={16} /> {user.github}
+                </a>
+              )}
+              {user.linkedin && (
+                <a href={`https://${user.linkedin}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-cera-muted hover:text-cera-text">
+                  <LinkIcon size={16} /> {user.linkedin}
+                </a>
+              )}
+            </div>
+          </Card>
+        )}
       </div>
+
+      <Modal isOpen={isEditing} onClose={() => setIsEditing(false)} title="Edit faculty profile" size="lg">
+        <form onSubmit={handleSave} className="space-y-4">
+          <label className="block">
+            <span className="label">Name</span>
+            <input className="input" value={form.name} maxLength={120} required onChange={(event) => setForm({ ...form, name: event.target.value })} />
+          </label>
+          <label className="block">
+            <span className="label">Work email</span>
+            <input className="input" type="email" value={form.email} maxLength={254} required onChange={(event) => setForm({ ...form, email: event.target.value })} />
+          </label>
+          <label className="block">
+            <span className="label">Teaching bio</span>
+            <textarea className="textarea" value={form.bio} maxLength={1000} rows={4} placeholder="Describe your teaching and areas of expertise" onChange={(event) => setForm({ ...form, bio: event.target.value })} />
+          </label>
+          <label className="block">
+            <span className="label">Skills and expertise (comma-separated)</span>
+            <input className="input" value={form.skills} maxLength={1800} placeholder="Algorithms, Python, Software engineering" onChange={(event) => setForm({ ...form, skills: event.target.value })} />
+          </label>
+          <label className="block">
+            <span className="label">GitHub profile</span>
+            <input className="input" value={form.github} maxLength={200} placeholder="github.com/username" onChange={(event) => setForm({ ...form, github: event.target.value })} />
+          </label>
+          <label className="block">
+            <span className="label">LinkedIn profile</span>
+            <input className="input" value={form.linkedin} maxLength={200} placeholder="linkedin.com/in/username" onChange={(event) => setForm({ ...form, linkedin: event.target.value })} />
+          </label>
+          {error && <p className="text-sm" style={{ color: 'var(--error)' }} role="alert">{error}</p>}
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" className="btn btn-ghost" onClick={() => setIsEditing(false)}>
+              <X size={14} /> Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={isSaving}>
+              <Save size={14} /> {isSaving ? 'Saving...' : 'Save changes'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </Page>
   );
 }

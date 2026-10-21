@@ -1,27 +1,59 @@
-import { useState } from 'react';
-import { Link, useLocation } from 'wouter';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Sparkles, TestTube2 } from 'lucide-react';
 
 import Page from '../../components/common/Page.jsx';
 import Card from '../../components/common/Card.jsx';
+import SecureLabSettings from '../../components/faculty/SecureLabSettings.jsx';
 import { useApp } from '../../context/AppContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { assignmentService } from '../../services/assignmentService.js';
-import { courses } from '../../data/facultyMockData.js';
+import { api } from '../../services/api.js';
 
 export default function CreateAssignment() {
   const { notify } = useApp();
-  const [, navigate] = useLocation();
+  const { token } = useAuth();
+  const navigate = useNavigate();
 
   const [title, setTitle] = useState('');
-  const [course, setCourse] = useState(courses[0] || '');
+  const [course, setCourse] = useState('');
   const [description, setDescription] = useState('');
+  const [evaluationCriteria, setEvaluationCriteria] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [timeLimit, setTimeLimit] = useState('');
   const [visibility, setVisibility] = useState('published');
   const [points, setPoints] = useState('');
+  const [passingPercentage, setPassingPercentage] = useState(40);
+  const [targetYears, setTargetYears] = useState([1, 2, 3, 4]);
+  const [languages, setLanguages] = useState(['python', 'java', 'cpp', 'javascript']);
   const [saved, setSaved] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [secureLab, setSecureLab] = useState({
+    enabled: false,
+    requireFullscreen: true,
+    recordTabSwitches: true,
+    recordFullscreenExits: true,
+    maxFullscreenExits: 2,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    api.request('/api/auth/faculty-settings', { token }).then(({ settings }) => {
+      if (cancelled) return;
+      const defaults = settings.assessmentDefaults || {};
+      setPoints(String(defaults.points ?? 100));
+      setPassingPercentage(defaults.passingPercentage ?? 40);
+      setTimeLimit(String(defaults.timeLimit ?? 0));
+      setTargetYears(defaults.targetYears || [1, 2, 3, 4]);
+      setLanguages(defaults.languages || ['python', 'java', 'cpp', 'javascript']);
+      setSecureLab((current) => ({ ...current, enabled: Boolean(defaults.secureLabEnabled) }));
+    }).catch((error) => notify(error.message || 'Unable to load assignment defaults.'));
+    return () => { cancelled = true; };
+  }, [token, notify]);
 
   const handleCreate = async () => {
+    setCreateError('');
     if (!title.trim()) {
       notify('Assignment title cannot be empty');
       return;
@@ -37,36 +69,40 @@ export default function CreateAssignment() {
       return;
     }
 
-    const newAssignment = {
-      title: title.trim(),
-      course,
-      due: dueDate,
-      description: description.trim(),
-      timeLimit: timeLimit.trim(),
-      visibility,
-      points: points.trim(),
-      submissions: 0,
-      total: 0,
-      difficulty: 'Intermediate',
-      color: 'var(--primary)',
-    };
+    setCreating(true);
+    try {
+      const newAssignment = {
+        title: title.trim(),
+        course,
+        due: dueDate,
+        description: description.trim(),
+        evaluationCriteria: evaluationCriteria.trim(),
+        timeLimit: timeLimit === '' ? 0 : Number(timeLimit),
+        visibility,
+        points: Number(points),
+        passingPercentage: Number(passingPercentage),
+        targetYears,
+        languages,
+        difficulty: 'Intermediate',
+        color: 'var(--primary)',
+        secureLab,
+      };
 
-    const created =
-      await assignmentService.create(
-        newAssignment
-      );
+      const created = await assignmentService.create(newAssignment, token);
 
-    if (!created) {
-      notify('Unable to create assignment');
-      return;
+      if (!created) throw new Error('The API did not return the created assignment.');
+
+      setSaved(true);
+      notify('Assignment created successfully');
+
+      setTimeout(() => {
+        navigate('/assignments');
+      }, 500);
+    } catch (error) {
+      setCreateError(error.message || 'Unable to create assignment.');
+    } finally {
+      setCreating(false);
     }
-
-    setSaved(true);
-    notify('Assignment created successfully');
-
-    setTimeout(() => {
-      navigate('/assignments');
-    }, 500);
   };
 
   return (
@@ -76,7 +112,7 @@ export default function CreateAssignment() {
       subtitle="Give your students a clear problem worth solving."
       actions={
         <Link
-          href="/assignments"
+          to="/assignments"
           className="btn btn-ghost"
         >
           Cancel
@@ -122,23 +158,25 @@ export default function CreateAssignment() {
                 Course
               </span>
 
-              <select
-                className="select"
+              <input
+                className="input"
+                type="text"
                 value={course}
-                onChange={(e) =>
-                  setCourse(e.target.value)
-                }
-              >
-                {courses.map((courseOption) => (
-                  <option
-                    key={courseOption}
-                    value={courseOption}
-                  >
-                    {courseOption}
-                  </option>
-                ))}
-              </select>
+                onChange={(event) => setCourse(event.target.value)}
+                placeholder="Enter the course name"
+              />
             </label>
+
+            <fieldset style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 14 }}>
+              <legend className="label">Target academic years</legend>
+              <div className="flex flex-wrap gap-4">{[1, 2, 3, 4].map((year) => <label key={year} style={{ display: 'flex', gap: 7, alignItems: 'center' }}><input type="checkbox" checked={targetYears.includes(year)} onChange={(event) => setTargetYears((current) => event.target.checked ? [...current, year].sort() : current.filter((item) => item !== year))} />Year {year}</label>)}</div>
+              <span style={{ color: 'var(--muted)', fontSize: 12 }}>Only students in selected years can view or submit this assignment.</span>
+            </fieldset>
+
+            <fieldset style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 14 }}>
+              <legend className="label">Allowed programming languages</legend>
+              <div className="flex flex-wrap gap-4">{[['python', 'Python'], ['java', 'Java'], ['cpp', 'C++'], ['javascript', 'JavaScript']].map(([value, label]) => <label key={value} style={{ display: 'flex', gap: 7, alignItems: 'center' }}><input type="checkbox" checked={languages.includes(value)} onChange={(event) => setLanguages((current) => event.target.checked ? [...current, value] : current.filter((item) => item !== value))} />{label}</label>)}</div>
+            </fieldset>
 
             <label>
               <span className="label">
@@ -153,6 +191,22 @@ export default function CreateAssignment() {
                 }
                 placeholder="Describe the problem students need to solve."
               />
+            </label>
+
+            <label>
+              <span className="label">
+                Evaluation conditions / complexity expectations
+              </span>
+
+              <textarea
+                className="textarea"
+                value={evaluationCriteria}
+                onChange={(e) => setEvaluationCriteria(e.target.value)}
+                placeholder="Optional: describe required conditions, edge cases, time/space complexity, or grading priorities."
+              />
+              <span style={{ color: 'var(--muted)', fontSize: 12 }}>
+                Used as grading guidance for faculty and local AI evaluation.
+              </span>
             </label>
 
             <div
@@ -180,16 +234,20 @@ export default function CreateAssignment() {
 
               <label>
                 <span className="label">
-                  Time limit
+                  Time limit (minutes, 0 = none)
                 </span>
 
                 <input
                   className="input"
+                  type="number"
+                  min="0"
+                  max="600"
+                  step="1"
                   value={timeLimit}
                   onChange={(e) =>
                     setTimeLimit(e.target.value)
                   }
-                  placeholder="e.g. 2 seconds"
+                  placeholder="e.g. 30"
                 />
               </label>
             </div>
@@ -272,6 +330,10 @@ export default function CreateAssignment() {
 
                 <input
                   className="input"
+                  type="number"
+                  min="1"
+                  max="10000"
+                  step="1"
                   value={points}
                   onChange={(e) =>
                     setPoints(e.target.value)
@@ -280,13 +342,24 @@ export default function CreateAssignment() {
                 />
               </label>
 
+              <label><span className="label">Passing percentage</span><input className="input" type="number" min="0" max="100" value={passingPercentage} onChange={(event) => setPassingPercentage(event.target.value)} /></label>
+
+              {createError && (
+                <p role="alert" style={{ color: 'var(--error)', fontSize: 13 }}>
+                  {createError}
+                </p>
+              )}
+
               <button
                 type="button"
                 className="btn btn-primary"
                 onClick={handleCreate}
+                disabled={creating}
               >
                 <Sparkles size={14} />
-                {saved
+                {creating
+                  ? 'Creating...'
+                  : saved
                   ? 'Created'
                   : 'Create assignment'}
               </button>
@@ -355,6 +428,7 @@ export default function CreateAssignment() {
               </button>
             </div>
           </Card>
+          <SecureLabSettings value={secureLab} onChange={setSecureLab} />
         </div>
       </div>
     </Page>

@@ -16,17 +16,18 @@ export default function StudentRoutes() {
   return (
     <Routes>
       <Route element={<StudentLayout />}>
-        <Route path="/student/dashboard" element={<Dashboard />} />
-        <Route path="/student/assignments" element={<Assignments />} />
-        <Route path="/student/assignments/:id" element={<AssignmentDetails />} />
-        <Route path="/student/submit/:id" element={<CodeSubmission />} />
-        <Route path="/student/submissions" element={<Submissions />} />
-        <Route path="/student/submissions/:id" element={<SubmissionDetails />} />
-        <Route path="/student/results" element={<Results />} />
-        <Route path="/student/results/:id" element={<ResultDetails />} />
-        <Route path="/student/leaderboard" element={<Leaderboard />} />
-        <Route path="/student/notifications" element={<Notifications />} />
-        <Route path="/student/profile" element={<Profile />} />
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="assignments" element={<Assignments />} />
+        <Route path="assignments/:id" element={<AssignmentDetails />} />
+        <Route path="submit/:id" element={<CodeSubmission />} />
+        <Route path="submissions" element={<Submissions />} />
+        <Route path="submissions/:id" element={<SubmissionDetails />} />
+        <Route path="results" element={<Results />} />
+        <Route path="results/:id" element={<ResultDetails />} />
+        <Route path="leaderboard" element={<Leaderboard />} />
+        <Route path="notifications" element={<Notifications />} />
+        <Route path="profile" element={<Profile />} />
         <Route path="*" element={<Navigate to="/student/dashboard" replace />} />
       </Route>
     </Routes>

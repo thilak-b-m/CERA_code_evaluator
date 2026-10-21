@@ -1,1 +1,0 @@
-export default function LanguageUsage({ items = [] }) { return <div>{items.map(item => <div key={item.name} style={{ marginBottom: 14 }}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}><span>{item.name}</span><span>{item.value}%</span></div><div className="progress"><span style={{ width: `${item.value}%` }} /></div></div>)}</div>; }

@@ -1,67 +1,44 @@
-const STORAGE_KEY = 'cera-evaluations';
+import { api } from './api.js';
 
-function getStoredEvaluations() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : {};
-  } catch (error) {
-    console.error('Error loading evaluations:', error);
-    return {};
-  }
+export async function getEvaluation(submissionId, token) {
+  const result = await api.request(
+    `/api/evaluations/${encodeURIComponent(submissionId)}`,
+    { token },
+  );
+  return result.evaluation;
 }
 
-function saveStoredEvaluations(evaluations) {
-  try {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(evaluations)
-    );
-    return true;
-  } catch (error) {
-    console.error('Error saving evaluations:', error);
-    return false;
-  }
+export async function autoEvaluate(submissionId, token) {
+  const result = await api.request(
+    `/api/evaluations/${encodeURIComponent(submissionId)}/auto`,
+    { method: 'POST', token },
+  );
+  return result.evaluation;
 }
 
-export function getEvaluation(submissionId) {
-  const evaluations = getStoredEvaluations();
-  return evaluations[submissionId] || null;
+async function saveEvaluation(submissionId, evaluation, status, token) {
+  const result = await api.request(
+    `/api/evaluations/${encodeURIComponent(submissionId)}`,
+    {
+      method: 'PUT',
+      token,
+      body: { ...evaluation, status },
+    },
+  );
+  return result.evaluation;
 }
 
-export function saveDraft(submissionId, evaluation) {
-  const evaluations = getStoredEvaluations();
+export const saveDraft = (submissionId, evaluation, token) => (
+  saveEvaluation(submissionId, evaluation, 'draft', token)
+);
 
-  const savedEvaluation = {
-    ...evaluations[submissionId],
-    ...evaluation,
-    submissionId,
-    status: 'Draft',
-  };
-
-  evaluations[submissionId] = savedEvaluation;
-  saveStoredEvaluations(evaluations);
-
-  return savedEvaluation;
-}
-
-export function publishEvaluation(submissionId, evaluation) {
-  const evaluations = getStoredEvaluations();
-
-  const publishedEvaluation = {
-    ...evaluations[submissionId],
-    ...evaluation,
-    submissionId,
-    status: 'Published',
-  };
-
-  evaluations[submissionId] = publishedEvaluation;
-  saveStoredEvaluations(evaluations);
-
-  return publishedEvaluation;
-}
+export const publishEvaluation = (submissionId, evaluation, token) => (
+  saveEvaluation(submissionId, evaluation, 'published', token)
+);
 
 export const evaluationService = {
   get: getEvaluation,
+  autoEvaluate,
   saveDraft,
   publish: publishEvaluation,
 };

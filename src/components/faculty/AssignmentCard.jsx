@@ -1,1 +1,0 @@
-export default function AssignmentCard({ assignment }) { return <div className="panel" style={{ padding: 18 }}><div className="panel-title">{assignment?.title || 'Assignment'}</div><div className="panel-kicker">{assignment?.course || 'Course workspace'}</div></div>; }

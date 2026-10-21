@@ -1,21 +1,19 @@
+import { Navigate, Route, Routes } from 'react-router-dom';
 import EditAssignment from '../pages/faculty/EditAssignment.jsx';
-import { Switch, Route, Redirect } from 'wouter';
 import FacultyDashboard from '../pages/faculty/FacultyDashboard.jsx';
 import LiveLab from '../pages/faculty/LiveLabMonitor.jsx';
 import Assignments from '../pages/faculty/Assignments.jsx';
 import CreateAssignment from '../pages/faculty/CreateAssignment.jsx';
 import AssignmentDetails from '../pages/faculty/AssignmentDetails.jsx';
 import TestCases from '../pages/faculty/TestCases.jsx';
-import Difficulty from '../pages/faculty/DifficultyAnalysis.jsx';
+import TestCaseDetails from '../pages/faculty/TestCaseDetails.jsx';
 import Students from '../pages/faculty/Students.jsx';
+import AcademicYears from '../pages/faculty/AcademicYears.jsx';
 import StudentProfile from '../pages/faculty/StudentProfile.jsx';
 import Submissions from '../pages/faculty/Submissions.jsx';
 import SubmissionDetails from '../pages/faculty/SubmissionDetails.jsx';
 import EvaluationQueue from '../pages/faculty/EvaluationQueue.jsx';
 import Evaluation from '../pages/faculty/Evaluation.jsx';
-import AIReview from '../pages/faculty/AIReview.jsx';
-import Plagiarism from '../pages/faculty/Plagiarism.jsx';
-import PlagiarismCompare from '../pages/faculty/PlagiarismCompare.jsx';
 import Analytics from '../pages/faculty/Analytics.jsx';
 import Reports from '../pages/faculty/Reports.jsx';
 import Notifications from '../pages/faculty/Notifications.jsx';
@@ -28,102 +26,29 @@ function NotFound() {
 
 export default function FacultyRoutes() {
   return (
-    <Switch>
-      <Route path="/">
-        <Redirect to="/dashboard" />
-      </Route>
-
-      <Route path="/dashboard">
-        <FacultyDashboard />
-      </Route>
-
-      <Route path="/live-lab">
-        <LiveLab />
-      </Route>
-
-      <Route path="/assignments/create">
-  <CreateAssignment />
-</Route>
-
-<Route path="/assignments/:id/edit">
-  <EditAssignment />
-</Route>
-
-<Route path="/assignments/:id">
-  <AssignmentDetails />
-</Route>
-
-<Route path="/assignments">
-  <Assignments />
-</Route>
-
-      <Route path="/test-cases">
-        <TestCases />
-      </Route>
-
-      <Route path="/difficulty-analysis">
-        <Difficulty />
-      </Route>
-
-      <Route path="/students/:id">
-        <StudentProfile />
-      </Route>
-
-      <Route path="/students">
-        <Students />
-      </Route>
-
-      <Route path="/submissions/:id">
-        <SubmissionDetails />
-      </Route>
-
-      <Route path="/submissions">
-        <Submissions />
-      </Route>
-
-      <Route path="/evaluation-queue">
-        <EvaluationQueue />
-      </Route>
-
-      <Route path="/evaluation/:id">
-        <Evaluation />
-      </Route>
-
-      <Route path="/ai-review">
-        <AIReview />
-      </Route>
-
-      <Route path="/plagiarism/compare">
-        <PlagiarismCompare />
-      </Route>
-
-      <Route path="/plagiarism">
-        <Plagiarism />
-      </Route>
-
-      <Route path="/analytics">
-        <Analytics />
-      </Route>
-
-      <Route path="/reports">
-        <Reports />
-      </Route>
-
-      <Route path="/notifications">
-        <Notifications />
-      </Route>
-
-      <Route path="/profile">
-        <Profile />
-      </Route>
-
-      <Route path="/settings">
-        <Settings />
-      </Route>
-
-      <Route>
-        <NotFound />
-      </Route>
-    </Switch>
+    <Routes>
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/dashboard" element={<FacultyDashboard />} />
+      <Route path="/live-lab" element={<LiveLab />} />
+      <Route path="/assignments/create" element={<CreateAssignment />} />
+      <Route path="/assignments/:id/edit" element={<EditAssignment />} />
+      <Route path="/assignments/:id" element={<AssignmentDetails />} />
+      <Route path="/assignments" element={<Assignments />} />
+      <Route path="/test-cases/:assignmentId" element={<TestCaseDetails />} />
+      <Route path="/test-cases" element={<TestCases />} />
+      <Route path="/students/academic-years" element={<AcademicYears />} />
+      <Route path="/students/:id" element={<StudentProfile />} />
+      <Route path="/students" element={<Students />} />
+      <Route path="/submissions/:id" element={<SubmissionDetails />} />
+      <Route path="/submissions" element={<Submissions />} />
+      <Route path="/evaluation-queue" element={<EvaluationQueue />} />
+      <Route path="/evaluation/:id" element={<Evaluation />} />
+      <Route path="/analytics" element={<Analytics />} />
+      <Route path="/reports" element={<Reports />} />
+      <Route path="/notifications" element={<Notifications />} />
+      <Route path="/profile" element={<Profile />} />
+      <Route path="/settings" element={<Settings />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 }

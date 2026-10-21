@@ -17,9 +17,9 @@ export default function TestCasePanel({ testCases, running, results }) {
       </div>
       <div className="divide-y divide-cera-border max-h-64 overflow-y-auto">
         <AnimatePresence>
-          {displayCases.map((tc) => {
+          {displayCases.map((tc, index) => {
             const passed = tc.status === 'Passed';
-            const failed = tc.status === 'Failed';
+            const failed = ['Failed', 'Timeout', 'Error'].includes(tc.status);
             const pending = tc.status === 'Pending';
             return (
               <motion.div
@@ -35,12 +35,12 @@ export default function TestCasePanel({ testCases, running, results }) {
                     {failed && <XCircle size={16} className="text-cera-error" />}
                     {pending && <div className="w-4 h-4 rounded-full border-2 border-cera-muted/30" />}
                     {running && !pending && <Loader2 size={16} className="text-cera-primary animate-spin" />}
-                    <span className="text-sm font-medium text-cera-text">Test Case {tc.id}</span>
+                    <span className="text-sm font-medium text-cera-text">Test Case {index + 1}</span>
                   </div>
-                  {tc.time > 0 && (
+                  {Number.isFinite(tc.time) && tc.time > 0 && (
                     <div className="flex items-center gap-3 text-xs text-cera-muted font-mono">
                       <span>{tc.time}ms</span>
-                      <span>{tc.memory}MB</span>
+                      {Number.isFinite(tc.memory) && <span>{tc.memory}MB</span>}
                     </div>
                   )}
                 </div>

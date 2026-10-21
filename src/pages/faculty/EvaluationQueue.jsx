@@ -1,16 +1,18 @@
-import { useMemo, useState } from 'react';
-import { Link, useLocation } from 'wouter';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ClipboardCheck,
   ArrowRight,
-  Search,
+  Sparkles,
 } from 'lucide-react';
 
 import Page from '../../components/common/Page.jsx';
-import { getSubmissions } from '../../services/submissionService.js';
-import { evaluationQueueHealth } from '../../data/facultyMockData.js';
-import { getEvaluation } from '../../services/evaluationService.js';
+import SearchBar from '../../components/common/SearchBar.jsx';
+import { submissionService } from '../../services/submissionService.js';
+import { autoEvaluate } from '../../services/evaluationService.js';
 import { useApp } from '../../context/AppContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { formatDateTime } from '../../utils/formatDate.js';
 
 function Section({
   title,
@@ -56,14 +58,36 @@ function Status({
 }
 
 export default function EvaluationQueue() {
-  const [, navigate] = useLocation();
+  const navigate = useNavigate();
   const { notify } = useApp();
+  const { token } = useAuth();
 
   const [search, setSearch] =
     useState('');
 
   const [filter, setFilter] =
     useState('all');
+  const [submissions, setSubmissions] = useState([]);
+  const [loadError, setLoadError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [autoEvaluationProgress, setAutoEvaluationProgress] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    submissionService.listForFaculty(token)
+      .then((items) => {
+        if (!cancelled) setSubmissions(items);
+      })
+      .catch((error) => {
+        if (!cancelled) setLoadError(error.message || 'Unable to load submissions.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   /*
    * ALL SUBMISSIONS THAT ARE READY FOR EVALUATION
@@ -74,18 +98,11 @@ export default function EvaluationQueue() {
    * Published evaluations are excluded.
    */
   const rows = useMemo(() => {
-    return getSubmissions().filter(
-      (submission) => {
-        const evaluation =
-          getEvaluation(submission.id);
-
-        return (
-          submission.hasSubmittedCode &&
-          evaluation?.status !== 'Published'
-        );
-      }
-    );
-  }, []);
+    return submissions.filter((submission) => (
+      submission.hasSubmittedCode
+      && submission.evaluation?.status !== 'published'
+    ));
+  }, [submissions]);
 
   /*
    * SEARCH + FILTER
@@ -96,10 +113,6 @@ export default function EvaluationQueue() {
 
     return rows.filter(
       (submission) => {
-        const id = String(
-          submission.id || ''
-        ).toLowerCase();
-
         const student = String(
           submission.student || ''
         ).toLowerCase();
@@ -111,34 +124,12 @@ export default function EvaluationQueue() {
 
         const matchesSearch =
           query === '' ||
-          id.includes(query) ||
           student.includes(query) ||
           assignment.includes(query);
 
-        /*
-         * Risk is determined only from the
-         * derived AI score.
-         *
-         * If no AI score exists, the submission
-         * is not treated as high risk.
-         */
-        const score =
-          submission.aiScore == null
-            ? null
-            : Number(
-                submission.aiScore
-              );
-
-        const isHighRisk =
-          score != null &&
-          score < 70;
-
         const matchesFilter =
           filter === 'all' ||
-          (filter === 'risk' &&
-            isHighRisk) ||
-          (filter === 'ready' &&
-            !isHighRisk);
+          (filter === 'ready' && !submission.evaluation);
 
         return (
           matchesSearch &&
@@ -152,20 +143,6 @@ export default function EvaluationQueue() {
    * QUEUE COUNTS
    */
   const reviewCount = rows.length;
-
-  const highRiskCount =
-    rows.filter(
-      (submission) =>
-        submission.aiScore != null &&
-        Number(submission.aiScore) < 70
-    ).length;
-
-  const progressPercent =
-    evaluationQueueHealth.todayProgress.target > 0
-      ? (evaluationQueueHealth.todayProgress.completed /
-          evaluationQueueHealth.todayProgress.target) *
-        100
-      : 0;
 
   /*
    * START NEXT REVIEW
@@ -181,49 +158,87 @@ export default function EvaluationQueue() {
     const nextSubmission =
       rows[0];
 
-    notify(
-      `Opening ${nextSubmission.id}`
-    );
-
     navigate(
       `/evaluation/${nextSubmission.id}`
     );
   };
 
   /*
-   * SEARCH HANDLER
+   * AUTO-EVALUATE ALL
    */
-  const handleSearch = (event) => {
-    setSearch(event.target.value);
+  const handleAutoEvaluateAll = async () => {
+    const queuedSubmissions = [...rows];
+    if (queuedSubmissions.length === 0 || autoEvaluationProgress) return;
+
+    setAutoEvaluationProgress({ completed: 0, total: queuedSubmissions.length });
+    const failures = [];
+    let completed = 0;
+
+    for (const submission of queuedSubmissions) {
+      try {
+        const evaluation = await autoEvaluate(submission.id, token);
+        setSubmissions((current) => current.map((item) => (
+          item.id === submission.id
+            ? { ...item, evaluation: { ...evaluation } }
+            : item
+        )));
+      } catch (error) {
+        failures.push(`${submission.student}: ${error.message || 'AI evaluation failed.'}`);
+      } finally {
+        completed += 1;
+        setAutoEvaluationProgress({
+          completed,
+          total: queuedSubmissions.length,
+        });
+      }
+    }
+
+    setAutoEvaluationProgress(null);
+    const succeeded = queuedSubmissions.length - failures.length;
+    if (failures.length === 0) {
+      notify(`AI evaluated and published all ${succeeded} queued submission${succeeded === 1 ? '' : 's'}.`);
+    } else {
+      notify(
+        `AI evaluation published ${succeeded} of ${queuedSubmissions.length}. `
+        + `${failures.length} failed; their submissions remain in the queue. `
+        + `First error: ${failures[0]}`,
+      );
+      console.error('Some queued AI evaluations failed:', failures);
+    }
   };
 
   return (
     <Page
       title="Evaluation queue"
-      subtitle="Make thoughtful calls faster with the highest-signal work first."
+      subtitle="Review submissions manually or publish AI evaluations for the entire queue."
       actions={
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={handleStartNext}
-        >
-          <ClipboardCheck size={14} />
-          Start next review
-        </button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={handleAutoEvaluateAll}
+            disabled={loading || rows.length === 0 || autoEvaluationProgress !== null}
+          >
+            <Sparkles size={14} />
+            {autoEvaluationProgress
+              ? `AI evaluating ${autoEvaluationProgress.completed}/${autoEvaluationProgress.total}...`
+              : `Auto-evaluate all (${reviewCount})`}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleStartNext}
+            disabled={loading || autoEvaluationProgress !== null}
+          >
+            <ClipboardCheck size={14} />
+            Start next review
+          </button>
+        </div>
       }
     >
       {/* QUEUE HEALTH */}
 
-      <div
-        className="panel"
-        style={{
-          padding: 16,
-          marginBottom: 14,
-          display: 'flex',
-          gap: 24,
-          flexWrap: 'wrap',
-        }}
-      >
+      <div className="panel" style={{ padding: 16, marginBottom: 14 }}>
         <div>
           <div className="eyebrow">
             QUEUE HEALTH
@@ -249,115 +264,17 @@ export default function EvaluationQueue() {
             </span>
           </div>
         </div>
-
-        <div>
-          <div className="eyebrow">
-            HIGH RISK
-          </div>
-
-          <div
-            style={{
-              font:
-                '22px var(--app-font-mono)',
-              marginTop: 7,
-              color:
-                highRiskCount > 0
-                  ? 'var(--warning)'
-                  : 'var(--success)',
-            }}
-          >
-            {highRiskCount}
-          </div>
-        </div>
-
-        <div>
-          <div className="eyebrow">
-            EST. TIME
-          </div>
-
-          <div
-            style={{
-              font:
-                '22px var(--app-font-mono)',
-              marginTop: 7,
-            }}
-          >
-            {evaluationQueueHealth.estimatedTime}
-          </div>
-        </div>
-
-        <div
-          style={{
-            flex: 1,
-            minWidth: 180,
-            alignSelf: 'center',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent:
-                'space-between',
-              color:
-                'var(--muted)',
-              fontSize: 11,
-              marginBottom: 7,
-            }}
-          >
-            <span>
-              Today's progress
-            </span>
-
-            <span>
-              {evaluationQueueHealth.todayProgress.completed}{' '}
-              /{' '}
-              {evaluationQueueHealth.todayProgress.target}
-            </span>
-          </div>
-
-          <div className="progress">
-            <span
-              style={{
-                width: `${progressPercent}%`,
-                background:
-                  'var(--success)',
-              }}
-            />
-          </div>
-        </div>
       </div>
 
       {/* SEARCH + FILTER */}
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent:
-            'space-between',
-          alignItems: 'center',
-          gap: 12,
-          marginBottom: 14,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div
-          className="search-box"
-          style={{
-            minWidth: 250,
-          }}
-        >
-          <Search size={15} />
-
-          <input
-            className="input"
-            type="text"
-            placeholder="Search submissions..."
-            value={search}
-            onChange={
-              handleSearch
-            }
-          />
-        </div>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <SearchBar
+          value={search}
+          onChange={setSearch}
+          placeholder="Search submissions..."
+          className="sm:flex-1"
+        />
 
         <div className="segmented">
           <button
@@ -371,21 +288,7 @@ export default function EvaluationQueue() {
               setFilter('all')
             }
           >
-            All
-          </button>
-
-          <button
-            type="button"
-            className={
-              filter === 'risk'
-                ? 'active'
-                : ''
-            }
-            onClick={() =>
-              setFilter('risk')
-            }
-          >
-            High risk
+            All {rows.length}
           </button>
 
           <button
@@ -399,7 +302,7 @@ export default function EvaluationQueue() {
               setFilter('ready')
             }
           >
-            Ready
+            Awaiting evaluation {reviewCount}
           </button>
         </div>
       </div>
@@ -415,16 +318,14 @@ export default function EvaluationQueue() {
                   ? 's'
                   : ''
               } found`
-            : 'Sorted by urgency and risk'
+            : 'Unpublished submissions'
         }
       >
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>
-                  Submission
-                </th>
+                <th>Submitted</th>
 
                 <th>
                   Student
@@ -435,11 +336,7 @@ export default function EvaluationQueue() {
                 </th>
 
                 <th>
-                  AI pre-score
-                </th>
-
-                <th>
-                  Risk
+                  Review status
                 </th>
 
                 <th />
@@ -449,42 +346,12 @@ export default function EvaluationQueue() {
             <tbody>
               {filteredRows.map(
                 (s) => {
-                  const highRisk =
-                    s.aiScore != null &&
-                    Number(
-                      s.aiScore
-                    ) < 70;
-
                   return (
                     <tr
                       key={s.id}
                     >
                       <td>
-                        <Link
-                          href={`/evaluation/${s.id}`}
-                          style={{
-                            color:
-                              'var(--text)',
-                            fontWeight:
-                              700,
-                          }}
-                        >
-                          {s.id}
-                        </Link>
-
-                        <small
-                          style={{
-                            display:
-                              'block',
-                            color:
-                              'var(--muted)',
-                            marginTop: 4,
-                          }}
-                        >
-                          {
-                            s.submitted
-                          }
-                        </small>
+                        {formatDateTime(s.submitted)}
                       </td>
 
                       <td>
@@ -499,38 +366,19 @@ export default function EvaluationQueue() {
                         }
                       </td>
 
-                      <td
-                        style={{
-                          fontFamily:
-                            'var(--app-font-mono)',
-                        }}
-                      >
-                        {s.aiScore}/100
-                      </td>
-
                       <td>
-                        <Status
-                          tone={
-                            highRisk
-                              ? 'warning'
-                              : 'success'
-                          }
-                        >
-                          {highRisk
-                            ? 'Inspect'
-                            : 'Low'}
+                        <Status tone={s.evaluation?.status === 'draft' ? 'warning' : 'neutral'}>
+                          {s.evaluation?.status === 'draft' ? 'Draft saved' : 'Needs review'}
                         </Status>
                       </td>
 
                       <td>
                         <Link
-                          href={`/evaluation/${s.id}`}
+                          to={`/evaluation/${s.id}`}
                           className="btn btn-soft"
                         >
                           Review
-                          <ArrowRight
-                            size={13}
-                          />
+                          <ArrowRight size={13} />
                         </Link>
                       </td>
                     </tr>
@@ -542,7 +390,7 @@ export default function EvaluationQueue() {
                 0 && (
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan="5"
                     style={{
                       textAlign:
                         'center',
@@ -551,17 +399,8 @@ export default function EvaluationQueue() {
                         'var(--muted)',
                     }}
                   >
-                    <Search
-                      size={24}
-                      style={{
-                        marginBottom: 8,
-                        opacity: 0.6,
-                      }}
-                    />
-
                     <div>
-                      No submissions
-                      found
+                      {loading ? 'Loading submissions...' : loadError || 'No submissions found'}
                     </div>
 
                     {search && (

@@ -287,6 +287,21 @@ a {
   padding: 32px 34px 60px;
 }
 
+/* Secure Lab assessment: show only the assignment workspace while in fullscreen. */
+body.secure-assessment-fullscreen .sidebar,
+body.secure-assessment-fullscreen .topbar {
+  display: none;
+}
+
+body.secure-assessment-fullscreen .main-content {
+  margin-left: 0;
+}
+
+body.secure-assessment-fullscreen .content {
+  max-width: none;
+  padding: 20px 24px 40px;
+}
+
 .eyebrow {
   color: var(--accent);
   font-family: var(--app-font-mono);
@@ -724,22 +739,6 @@ tr:hover td {
   margin: 4px auto -14px;
 }
 
-.search-box {
-  position: relative;
-  min-width: 250px;
-}
-
-.search-box svg {
-  position: absolute;
-  left: 11px;
-  top: 11px;
-  color: var(--muted);
-}
-
-.search-box input {
-  padding-left: 34px;
-}
-
 .segmented {
   display: inline-flex;
   padding: 3px;
@@ -750,13 +749,15 @@ tr:hover td {
 }
 
 .segmented button {
-  padding: 7px 11px;
+  padding: 7px 12px;
   border: 0;
   background: transparent;
   color: var(--muted);
   border-radius: 6px;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color .15s ease, background .15s ease;
 }
 
 .segmented button.active {
@@ -977,15 +978,6 @@ tr:hover td {
   .kpi-value {
     font-size: 22px;
     margin-top: 13px;
-  }
-
-  .search-box {
-    min-width: 0;
-    flex: 1;
-  }
-
-  .hide-mobile {
-    display: none !important;
   }
 
   .page-title {

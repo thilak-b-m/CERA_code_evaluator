@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'wouter';
+import { useParams } from 'react-router-dom';
 import {
   Check,
   Sparkles,
@@ -8,9 +8,11 @@ import {
 
 import Page from '../../components/common/Page.jsx';
 import { useApp } from '../../context/AppContext.jsx';
-import { getSubmissionById } from '../../services/submissionService.js';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { submissionService } from '../../services/submissionService.js';
 import {
   getEvaluation,
+  autoEvaluate,
   saveDraft,
   publishEvaluation,
 } from '../../services/evaluationService.js';
@@ -47,66 +49,46 @@ function Section({
 export default function Evaluation() {
   const { id } = useParams();
   const { notify } = useApp();
+  const { token } = useAuth();
 
-  const s = getSubmissionById(id);
-
-  const savedEvaluation = s
-    ? getEvaluation(s.id)
-    : null;
-
-  const [score, setScore] = useState(
-    savedEvaluation?.score ?? ''
-  );
-
-  const [feedback, setFeedback] =
-    useState(
-      savedEvaluation?.feedback ?? ''
-    );
-
-  const [
-    shareInsights,
-    setShareInsights,
-  ] = useState(
-    savedEvaluation?.shareInsights ?? true
-  );
-
-  const [
-    evaluationStatus,
-    setEvaluationStatus,
-  ] = useState(
-    savedEvaluation?.status ?? null
-  );
+  const [s, setSubmission] = useState(null);
+  const [score, setScore] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const [evaluationStatus, setEvaluationStatus] = useState(null);
+  const [loadError, setLoadError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [evaluationSource, setEvaluationSource] = useState('faculty');
 
   useEffect(() => {
-    if (!s) {
-      return;
+    let cancelled = false;
+    setSubmission(null);
+    setLoadError('');
+    async function load() {
+      try {
+        const submission = await submissionService.getForFaculty(id, token);
+        const evaluation = await getEvaluation(id, token);
+        if (cancelled) return;
+        setSubmission(submission);
+        setScore(evaluation ? String(evaluation.score) : '');
+        setFeedback(evaluation?.feedback || '');
+        setEvaluationStatus(evaluation?.status || null);
+        setEvaluationSource(evaluation?.source || 'faculty');
+      } catch (error) {
+        if (!cancelled) setLoadError(error.message || 'Unable to load submission.');
+      }
     }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, token]);
 
-    const saved =
-      getEvaluation(s.id);
-
-    setScore(
-      saved?.score ?? ''
-    );
-
-    setFeedback(
-      saved?.feedback ?? ''
-    );
-
-    setShareInsights(
-      saved?.shareInsights ?? true
-    );
-
-    setEvaluationStatus(
-      saved?.status ?? null
-    );
-  }, [s?.id]);
-
-  if (!s) {
+  if (!s && !loadError) {
     return (
       <Page
         title="Evaluate submission"
-        subtitle="The requested submission could not be found."
+        subtitle="Loading submission..."
       >
         <div
           className="panel"
@@ -115,7 +97,17 @@ export default function Evaluation() {
             color: 'var(--muted)',
           }}
         >
-          Submission not found.
+          Loading submission...
+        </div>
+      </Page>
+    );
+  }
+
+  if (loadError || !s) {
+    return (
+      <Page title="Evaluate submission" subtitle={loadError || 'Submission not found.'}>
+        <div role="alert" className="panel" style={{ padding: 30, color: 'var(--warning)' }}>
+          {loadError || 'Submission not found.'}
         </div>
       </Page>
     );
@@ -124,7 +116,7 @@ export default function Evaluation() {
   const hasEvidence =
     s.hasSubmittedCode;
 
-  const handleSaveDraft = () => {
+  const handleSaveDraft = async () => {
     if (!hasEvidence) {
       notify(
         'Evaluation is unavailable because submitted code is missing'
@@ -132,25 +124,44 @@ export default function Evaluation() {
       return;
     }
 
-    const saved = saveDraft(s.id, {
-      score:
-        score === ''
-          ? ''
-          : Number(score),
+    setSaving(true);
+    try {
+      const saved = await saveDraft(s.id, {
+      score: score === '' ? 0 : Number(score),
       feedback,
-      shareInsights,
-    });
-
-    setEvaluationStatus(
-      saved.status
-    );
-
-    notify(
-      `Evaluation draft saved for ${s.student}`
-    );
+      }, token);
+      setEvaluationStatus(saved.status);
+      setEvaluationSource('faculty');
+      notify(`Evaluation draft saved for ${s.student}`);
+    } catch (error) {
+      notify(error.message || 'Unable to save evaluation draft.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handlePublish = () => {
+  const handleAutoEvaluate = async () => {
+    if (!hasEvidence) {
+      notify('AI evaluation is unavailable because submitted code is missing');
+      return;
+    }
+
+    setGenerating(true);
+    try {
+      const generated = await autoEvaluate(s.id, token);
+      setScore(String(generated.score));
+      setFeedback(generated.feedback);
+      setEvaluationStatus(generated.status);
+      setEvaluationSource(generated.source || 'ollama');
+      notify(`AI evaluation published for ${s.student}.`);
+    } catch (error) {
+      notify(error.message || 'Unable to generate an AI evaluation.');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handlePublish = async () => {
     if (!hasEvidence) {
       notify(
         'Evaluation cannot be published because submitted code is missing'
@@ -161,10 +172,10 @@ export default function Evaluation() {
     if (
       score === '' ||
       Number(score) < 0 ||
-      Number(score) > 100
+      Number(score) > (s.maxScore || 100)
     ) {
       notify(
-        'Score must be between 0 and 100'
+        `Score must be between 0 and ${s.maxScore || 100}`
       );
       return;
     }
@@ -176,45 +187,52 @@ export default function Evaluation() {
       return;
     }
 
-    const published =
-      publishEvaluation(s.id, {
+    setSaving(true);
+    try {
+      const published = await publishEvaluation(s.id, {
         score: Number(score),
         feedback: feedback.trim(),
-        shareInsights,
-      });
-
-    setEvaluationStatus(
-      published.status
-    );
-
-    notify(
-      `Evaluation published for ${s.student}`
-    );
+      }, token);
+      setEvaluationStatus(published.status);
+      setEvaluationSource('faculty');
+      notify(`Evaluation published for ${s.student}`);
+    } catch (error) {
+      notify(error.message || 'Unable to publish evaluation.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <Page
-      eyebrow={`EVALUATION / ${s.id}`}
+      eyebrow="EVALUATION"
       title="Evaluate submission"
       subtitle={`${s.student} · ${s.assignment}`}
       actions={
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={handleSaveDraft}
-          disabled={!hasEvidence}
-          style={{
-            opacity:
-              hasEvidence ? 1 : 0.55,
-            cursor:
-              hasEvidence
-                ? 'pointer'
-                : 'not-allowed',
-          }}
-        >
-          <Check size={14} />
-          Save draft
-        </button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={handleAutoEvaluate}
+            disabled={!hasEvidence || saving || generating}
+          >
+            <Sparkles size={14} />
+            {generating ? 'Evaluating with AI...' : 'Auto-evaluate and publish'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={handleSaveDraft}
+            disabled={!hasEvidence || saving || generating}
+            style={{
+              opacity: hasEvidence ? 1 : 0.55,
+              cursor: hasEvidence ? 'pointer' : 'not-allowed',
+            }}
+          >
+            <Check size={14} />
+            Save draft
+          </button>
+        </div>
       }
     >
       <div
@@ -228,23 +246,6 @@ export default function Evaluation() {
           flexWrap: 'wrap',
         }}
       >
-        <div>
-          <div className="eyebrow">
-            SUBMISSION
-          </div>
-
-          <div
-            style={{
-              font:
-                '18px var(--app-font-mono)',
-              marginTop: 6,
-              fontWeight: 700,
-            }}
-          >
-            {s.id}
-          </div>
-        </div>
-
         <div>
           <div className="eyebrow">
             STUDENT
@@ -278,7 +279,7 @@ export default function Evaluation() {
 
         <div>
           <div className="eyebrow">
-            AI PRE-SCORE
+            FACULTY REVIEW
           </div>
 
           <div
@@ -288,10 +289,7 @@ export default function Evaluation() {
                 '16px var(--app-font-mono)',
             }}
           >
-            {s.aiScore ?? '—'}
-            {s.aiScore !== null &&
-              s.aiScore !== undefined &&
-              '/100'}
+            {evaluationStatus || 'Not evaluated'}
           </div>
         </div>
 
@@ -360,57 +358,30 @@ export default function Evaluation() {
       >
         <Section
           title="Review context"
-          kicker="Automated evidence and submitted work"
+          kicker="Problem, grading criteria, and submitted source code"
         >
           <div
             style={{
               padding: 20,
             }}
           >
+          <div style={{ marginBottom: 16 }}>
+            <div className="eyebrow">PROBLEM DESCRIPTION</div>
+            <p style={{ color: 'var(--muted)', whiteSpace: 'pre-wrap', marginTop: 6 }}>
+              {s.assignmentDescription || 'No assignment description is available.'}
+            </p>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <div className="eyebrow">EVALUATION CONDITIONS / COMPLEXITY</div>
+            <p style={{ color: 'var(--muted)', whiteSpace: 'pre-wrap', marginTop: 6 }}>
+              {s.evaluationCriteria || 'No additional criteria supplied.'}
+            </p>
+          </div>
           <pre className="code">
             {s.evidence?.submittedCode ||
               'Submitted code is not available.'}
           </pre>
 
-            <div
-              style={{
-                marginTop: 16,
-                padding: 14,
-                background:
-                  'var(--subtle)',
-                borderRadius: 9,
-                fontSize: 12,
-                lineHeight: 1.6,
-              }}
-            >
-              <Sparkles
-                size={14}
-                color="var(--secondary)"
-                style={{
-                  verticalAlign:
-                    'middle',
-                  marginRight: 7,
-                }}
-              />
-
-              <strong>
-                {hasEvidence
-                  ? 'AI signal'
-                  : 'AI signal unavailable'}
-              </strong>
-
-              <div
-                style={{
-                  color:
-                    'var(--muted)',
-                  marginTop: 5,
-                }}
-              >
-                {hasEvidence
-                  ? 'Automated insights are available for this submitted code.'
-                  : 'Automated insights are unavailable because submitted code is missing.'}
-              </div>
-            </div>
           </div>
         </Section>
 
@@ -425,6 +396,21 @@ export default function Evaluation() {
               gap: 18,
             }}
           >
+            {evaluationSource === 'ollama' && (
+              <div
+                role="status"
+                style={{
+                  padding: 10,
+                  border: '1px solid var(--warning)',
+                  borderRadius: 8,
+                  color: 'var(--muted)',
+                  fontSize: 12,
+                }}
+              >
+                AI-generated draft. Review and edit the score and feedback before publishing.
+              </div>
+            )}
+
             <label>
               <span className="label">
                 Score
@@ -442,7 +428,7 @@ export default function Evaluation() {
                   className="input"
                   type="number"
                   min="0"
-                  max="100"
+                  max={s.maxScore || 100}
                   value={score}
                   disabled={!hasEvidence}
                   onChange={(e) =>
@@ -464,7 +450,7 @@ export default function Evaluation() {
                       'var(--muted)',
                   }}
                 >
-                  / 100
+                  / {s.maxScore || 100}
                 </span>
               </div>
             </label>
@@ -495,41 +481,13 @@ export default function Evaluation() {
               />
             </label>
 
-            <label
-              style={{
-                display: 'flex',
-                alignItems:
-                  'center',
-                gap: 9,
-                fontSize: 12,
-                opacity:
-                  hasEvidence ? 1 : 0.55,
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={
-                  shareInsights
-                }
-                disabled={!hasEvidence}
-                onChange={(e) =>
-                  setShareInsights(
-                    e.target.checked
-                  )
-                }
-              />
-
-              Share automated insights
-              with student
-            </label>
-
             <button
               type="button"
               className="btn btn-primary"
               onClick={
                 handlePublish
               }
-              disabled={!hasEvidence}
+              disabled={!hasEvidence || saving || generating}
               style={{
                 opacity:
                   hasEvidence ? 1 : 0.55,

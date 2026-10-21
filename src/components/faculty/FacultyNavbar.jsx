@@ -1,1 +1,0 @@
-export default function FacultyNavbar({ title = 'Faculty workspace', children }) { return <header className="topbar"><span style={{ color: 'var(--muted)', fontSize: 12 }}>{title}</span>{children}</header>; }

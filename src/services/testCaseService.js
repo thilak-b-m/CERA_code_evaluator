@@ -1,256 +1,47 @@
-import {
-  testCases as defaultTestCases,
-} from '../data/facultyMockData.js';
+import { api } from './api.js';
 
-const STORAGE_KEY = 'cera-test-cases';
-
-function getAllTestCases() {
-  try {
-    const saved =
-      localStorage.getItem(STORAGE_KEY);
-
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch (error) {
-    console.error(
-      'Error loading test cases:',
-      error
-    );
-  }
-
-  return defaultTestCases;
-}
-
-function saveAllTestCases(testCases) {
-  try {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(testCases)
-    );
-
-    return true;
-  } catch (error) {
-    console.error(
-      'Error saving test cases:',
-      error
-    );
-
-    return false;
-  }
-}
-
-export function getTestCases(
-  assignmentId
-) {
-  const allTestCases =
-    getAllTestCases();
-
-  return allTestCases[
-    assignmentId
-  ] || [];
-}
-
-export function getTestCaseById(
-  assignmentId,
-  testCaseId
-) {
-  return getTestCases(
-    assignmentId
-  ).find(
-    (testCase) =>
-      testCase.id === testCaseId
-  ) || null;
-}
-
-export function createTestCase(
-  assignmentId,
-  data
-) {
-  const allTestCases =
-    getAllTestCases();
-
-  const existing =
-    allTestCases[
-      assignmentId
-    ] || [];
-
-  const newTestCase = {
-    ...data,
-    id:
-      data.id ||
-      `TC-${Date.now()}`,
-    assignmentId,
-  };
-
-  allTestCases[
-    assignmentId
-  ] = [
-    ...existing,
-    newTestCase,
-  ];
-
-  saveAllTestCases(
-    allTestCases
-  );
-
-  return newTestCase;
-}
-
-export function updateTestCase(
-  assignmentId,
-  testCaseId,
-  data
-) {
-  const allTestCases =
-    getAllTestCases();
-
-  const existing =
-    allTestCases[
-      assignmentId
-    ] || [];
-
-  let updatedTestCase = null;
-
-  const updated =
-    existing.map((testCase) => {
-      if (
-        testCase.id !==
-        testCaseId
-      ) {
-        return testCase;
-      }
-
-      updatedTestCase = {
-        ...testCase,
-        ...data,
-        id: testCase.id,
-        assignmentId,
-      };
-
-      return updatedTestCase;
-    });
-
-  if (!updatedTestCase) {
-    return null;
-  }
-
-  allTestCases[
-    assignmentId
-  ] = updated;
-
-  saveAllTestCases(
-    allTestCases
-  );
-
-  return updatedTestCase;
-}
-
-export function deleteTestCase(
-  assignmentId,
-  testCaseId
-) {
-  const allTestCases =
-    getAllTestCases();
-
-  const existing =
-    allTestCases[
-      assignmentId
-    ] || [];
-
-  const deleted =
-    existing.find(
-      (testCase) =>
-        testCase.id === testCaseId
-    ) || null;
-
-  if (!deleted) {
-    return null;
-  }
-
-  allTestCases[
-    assignmentId
-  ] = existing.filter(
-    (testCase) =>
-      testCase.id !== testCaseId
-  );
-
-  saveAllTestCases(
-    allTestCases
-  );
-
-  return deleted;
-}
-
-export function getTestCaseSummary(
-  assignmentId
-) {
-  const cases =
-    getTestCases(
-      assignmentId
-    );
-
-  return {
-    total: cases.length,
-    public: cases.filter(
-      (testCase) =>
-        testCase.visibility ===
-        'Public'
-    ).length,
-    hidden: cases.filter(
-      (testCase) =>
-        testCase.visibility ===
-        'Hidden'
-    ).length,
-  };
+function resourcePath(assignmentId, testCaseId) {
+  const base = `/api/assignments/${encodeURIComponent(assignmentId)}/test-cases`;
+  return testCaseId ? `${base}/${encodeURIComponent(testCaseId)}` : base;
 }
 
 export const testCaseService = {
-  list: async (assignmentId) =>
-    getTestCases(assignmentId),
+  list: async (assignmentId, token) => {
+    const result = await api.request(resourcePath(assignmentId), { token });
+    return result.testCases;
+  },
 
-  get: async (
-    assignmentId,
-    testCaseId
-  ) =>
-    getTestCaseById(
-      assignmentId,
-      testCaseId
-    ),
+  summary: async (assignmentId, token) => {
+    const cases = await testCaseService.list(assignmentId, token);
+    return {
+      total: cases.length,
+      public: cases.filter((testCase) => testCase.visibility === 'Public').length,
+      hidden: cases.filter((testCase) => testCase.visibility === 'Hidden').length,
+    };
+  },
 
-  create: async (
-    assignmentId,
-    data
-  ) =>
-    createTestCase(
-      assignmentId,
-      data
-    ),
+  create: async (assignmentId, data, token) => {
+    const result = await api.request(resourcePath(assignmentId), {
+      method: 'POST',
+      token,
+      body: data,
+    });
+    return result.testCase;
+  },
 
-  update: async (
-    assignmentId,
-    testCaseId,
-    data
-  ) =>
-    updateTestCase(
-      assignmentId,
-      testCaseId,
-      data
-    ),
+  update: async (assignmentId, testCaseId, data, token) => {
+    const result = await api.request(resourcePath(assignmentId, testCaseId), {
+      method: 'PATCH',
+      token,
+      body: data,
+    });
+    return result.testCase;
+  },
 
-  delete: async (
-    assignmentId,
-    testCaseId
-  ) =>
-    deleteTestCase(
-      assignmentId,
-      testCaseId
-    ),
-
-  summary: async (
-    assignmentId
-  ) =>
-    getTestCaseSummary(
-      assignmentId
-    ),
+  delete: async (assignmentId, testCaseId, token) => {
+    await api.request(resourcePath(assignmentId, testCaseId), {
+      method: 'DELETE',
+      token,
+    });
+  },
 };

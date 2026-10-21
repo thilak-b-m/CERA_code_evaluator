@@ -1,312 +1,132 @@
-import { useParams } from 'wouter';
-import {
-  Send,
-  FileText,
-  Target,
-  BookOpen,
-  Timer,
-  ShieldCheck,
-} from 'lucide-react';
-
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { Search } from 'lucide-react';
+import Card from '../../components/common/Card.jsx';
 import Page from '../../components/common/Page.jsx';
-import { students } from '../../data/facultyMockData.js';
-
-function Avatar({ children, color }) {
-  return (
-    <span
-      className="avatar"
-      style={{
-        background: color
-          ? `linear-gradient(135deg, ${color}, #6366F1)`
-          : undefined,
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-function Status({ children, tone = 'neutral' }) {
-  return (
-    <span className={`status status-${tone}`}>
-      <span className="status-dot" />
-      {children}
-    </span>
-  );
-}
-
-function Kpi({ icon: Icon, label, value, trend, color }) {
-  return (
-    <div className="kpi">
-      <div
-        className="kpi-icon"
-        style={{ color }}
-      >
-        <Icon size={17} />
-      </div>
-
-      <div className="kpi-label">
-        {label}
-      </div>
-
-      <div className="kpi-value">
-        {value}
-      </div>
-
-      <div className="kpi-trend">
-        {trend}
-      </div>
-    </div>
-  );
-}
-
-function Section({ title, kicker, action, children }) {
-  return (
-    <section className="panel">
-      <div className="panel-header">
-        <div>
-          <div className="panel-title">
-            {title}
-          </div>
-
-          {kicker && (
-            <div className="panel-kicker">
-              {kicker}
-            </div>
-          )}
-        </div>
-
-        {action && <div>{action}</div>}
-      </div>
-
-      {children}
-    </section>
-  );
-}
-
-function Chart() {
-  return (
-    <div
-      style={{
-        height: 180,
-        display: 'flex',
-        alignItems: 'flex-end',
-        gap: 10,
-        padding: '10px 0',
-      }}
-    >
-      {[62, 70, 66, 78, 74, 88, 82, 94].map(
-        (value, index) => (
-          <div
-            key={index}
-            style={{
-              flex: 1,
-              height: `${value}%`,
-              minHeight: 20,
-              background: 'var(--primary)',
-              borderRadius: '5px 5px 0 0',
-              opacity: 0.8,
-            }}
-            title={`Assignment ${index + 1}: ${value}%`}
-          />
-        )
-      )}
-    </div>
-  );
-}
+import { studentService } from '../../services/studentService.js';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { formatDateTime } from '../../utils/formatDate.js';
 
 export default function StudentProfile() {
   const { id } = useParams();
+  const { token } = useAuth();
+  const [student, setStudent] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const student =
-    students.find((s) => s.id === id) ||
-    students[0];
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setError('');
+    studentService.getDepartmentRecord(id, token)
+      .then((record) => {
+        if (!cancelled) setStudent(record);
+      })
+      .catch((loadError) => {
+        if (!cancelled) setError(loadError.message);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, token]);
+
+  if (isLoading) {
+    return (
+      <Page title="Student record" subtitle="Loading the department roster entry.">
+        <Card title="Student record">
+          <div className="empty" role="status">Loading student record...</div>
+        </Card>
+      </Page>
+    );
+  }
+
+  if (error) {
+    return (
+      <Page title="Student record" subtitle="The roster entry could not be loaded.">
+        <Card title="Unable to load student record">
+          <div className="empty" role="alert">{error}</div>
+        </Card>
+      </Page>
+    );
+  }
+
+  if (!student) {
+    return (
+      <Page title="Student not found" subtitle="No matching student record is available in your department.">
+        <Card title="Student record">
+          <div className="empty">
+            <Search size={28} />
+            <p>No matching student record was found in your department.</p>
+          </div>
+        </Card>
+      </Page>
+    );
+  }
 
   return (
     <Page
-      eyebrow={`STUDENTS / ${student.id}`}
+      eyebrow="DEPARTMENT ROSTER"
       title={student.name}
-      subtitle={student.email}
-      actions={
-        <>
-          <button className="btn btn-ghost">
-            <Send size={14} />
-            Message
-          </button>
-
-          <button className="btn btn-primary">
-            <FileText size={14} />
-            Student report
-          </button>
-        </>
-      }
+      subtitle={`${student.usn} · Year ${student.year} · ${student.department}`}
     >
-      <div
-        className="panel"
-        style={{
-          padding: 22,
-          display: 'flex',
-          gap: 18,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
-        <Avatar color={student.color}>
-          {student.initials}
-        </Avatar>
-
-        <div style={{ flex: 1 }}>
-          <div
-            style={{
-              fontSize: 18,
-              fontWeight: 700,
-            }}
-          >
-            {student.name}
-          </div>
-
-          <div
-            style={{
-              color: 'var(--muted)',
-              fontSize: 12,
-              marginTop: 5,
-            }}
-          >
-            CS 301 · Algorithms · joined Sep 4, 2024
-          </div>
+      <div className="grid gap-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            ['Assignments', student.totalAssignments],
+            ['Submitted', student.submittedAssignments],
+            ['Published results', student.publishedEvaluations],
+            ['Average score', student.averagePercentage === null ? '—' : `${student.averagePercentage}%`],
+          ].map(([label, value]) => (
+            <Card key={label} title={label}>
+              <p className="px-4 pb-4 text-2xl font-semibold">{value}</p>
+            </Card>
+          ))}
         </div>
 
-        <Status tone="success">
-          On track
-        </Status>
-
-        <div style={{ textAlign: 'right' }}>
-          <div
-            style={{
-              color: 'var(--muted)',
-              fontSize: 10,
-            }}
-          >
-            COURSE AVERAGE
-          </div>
-
-          <div
-            style={{
-              font: '24px var(--app-font-mono)',
-              marginTop: 4,
-            }}
-          >
-            {student.score}%
-          </div>
-        </div>
-      </div>
-
-      <div
-        className="grid-kpi"
-        style={{ marginTop: 14 }}
-      >
-        <Kpi
-          icon={Target}
-          label="Course average"
-          value={`${student.score}%`}
-          trend="+6.8% this month"
-          color="var(--success)"
-        />
-
-        <Kpi
-          icon={BookOpen}
-          label="Labs completed"
-          value={student.labs.split(' / ')[0]}
-          trend="On schedule"
-          color="var(--accent)"
-        />
-
-        <Kpi
-          icon={Timer}
-          label="Avg. runtime"
-          value="693ms"
-          trend="Top 30% of class"
-          color="var(--primary)"
-        />
-
-        <Kpi
-          icon={ShieldCheck}
-          label="Integrity score"
-          value="Clean"
-          trend="No matches found"
-          color="var(--secondary)"
-        />
-      </div>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns:
-            'minmax(0,1.2fr) minmax(280px,.8fr)',
-          gap: 14,
-          marginTop: 14,
-        }}
-      >
-        <Section
-          title="Performance over time"
-          kicker="Score by assignment"
-        >
-          <div
-            style={{
-              padding: '5px 20px 17px',
-            }}
-          >
-            <Chart />
-          </div>
-        </Section>
-
-        <Section title="Skill signals">
-          <div
-            style={{
-              padding: 20,
-              display: 'grid',
-              gap: 16,
-            }}
-          >
-            {[
-              ['Algorithms', 82],
-              ['Debugging', 74],
-              ['Code quality', 91],
-              ['Testing discipline', 67],
-            ].map(([x, v]) => (
-              <div key={x}>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: 12,
-                    marginBottom: 6,
-                  }}
-                >
-                  <span>{x}</span>
-
-                  <span
-                    style={{
-                      font:
-                        '11px var(--app-font-mono)',
-                      color: 'var(--accent)',
-                    }}
-                  >
-                    {v}
-                  </span>
-                </div>
-
-                <div className="progress">
-                  <span
-                    style={{
-                      width: `${v}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </Section>
+        <Card title="Assignment record" kicker="Submissions and evaluation status">
+          {student.assignments.length ? (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Assignment</th>
+                    <th>Course</th>
+                    <th>Status</th>
+                    <th>Score</th>
+                    <th>Submitted</th>
+                    <th>Review</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {student.assignments.map((assignment) => (
+                    <tr key={assignment.assignmentId}>
+                      <td>{assignment.title}</td>
+                      <td>{assignment.course || '—'}</td>
+                      <td>{assignment.evaluationStatus === 'published' ? 'Published' : assignment.evaluationStatus === 'draft' ? 'Needs review' : assignment.status}</td>
+                      <td>
+                        {assignment.score === null
+                          ? '—'
+                          : `${assignment.score}/${assignment.points}`}
+                      </td>
+                      <td>{formatDateTime(assignment.submittedAt)}</td>
+                      <td>
+                        {assignment.submissionId
+                          ? <Link className="btn btn-ghost" to={`/submissions/${assignment.submissionId}`}>View</Link>
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="empty">No active assignments are available.</div>
+          )}
+        </Card>
       </div>
     </Page>
   );

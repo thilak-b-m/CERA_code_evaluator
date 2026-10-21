@@ -1,23 +1,19 @@
-import { useState } from 'react';
-import { Link, useLocation } from 'wouter';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Activity,
   BarChart3,
   Bell,
   BookOpen,
-  BrainCircuit,
   ChevronDown,
   ClipboardCheck,
   FileCode2,
   FileText,
-  Gauge,
-  GitCompare,
   LayoutDashboard,
   LogOut,
   Menu,
   Moon,
   PanelLeftClose,
-  Search,
   Settings2,
   Sun,
   TestTube2,
@@ -27,8 +23,8 @@ import {
 import ceraLogo from '../assets/images/cera-logo.png';
 import { useApp } from '../context/AppContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import { getSubmissions } from '../services/submissionService.js';
-import { getEvaluation } from '../services/evaluationService.js';
+import { useTheme } from '../context/ThemeContext.jsx';
+import { submissionService } from '../services/submissionService.js';
 
 const navSections = [
   {
@@ -37,33 +33,27 @@ const navSections = [
       ['Dashboard', '/dashboard', LayoutDashboard],
       ['Live lab', '/live-lab', Activity],
       ['Assignments', '/assignments', BookOpen],
+      ['Test cases', '/test-cases', TestTube2],
+    ],
+  },
+  {
+    label: 'Review',
+    items: [
       ['Submissions', '/submissions', FileCode2],
       [
         'Evaluation queue',
         '/evaluation-queue',
         ClipboardCheck,
       ],
+      ['Students', '/students', Users],
+      ['Academic Year Management', '/students/academic-years', Users],
     ],
   },
   {
-    label: 'Understand',
+    label: 'Insights',
     items: [
-      ['Students', '/students', Users],
-      [
-        'Difficulty analysis',
-        '/difficulty-analysis',
-        Gauge,
-      ],
       ['Analytics', '/analytics', BarChart3],
       ['Reports', '/reports', FileText],
-    ],
-  },
-  {
-    label: 'Quality',
-    items: [
-      ['Test cases', '/test-cases', TestTube2],
-      ['AI review', '/ai-review', BrainCircuit],
-      ['Plagiarism', '/plagiarism', GitCompare],
     ],
   },
 ];
@@ -75,102 +65,45 @@ export default function FacultyLayout({
   const [profileMenuOpen, setProfileMenuOpen] =
     useState(false);
 
-  const {
-    theme,
-    setTheme,
-    notify,
-    profile,
-  } = useApp();
-  const { logout } = useAuth();
+  const { notify } = useApp();
+  const { theme, setTheme } = useTheme();
+  const { logout, user, token } = useAuth();
+  const facultyName = user?.name || 'Faculty member';
+  const nameParts = facultyName.trim().split(/\s+/);
+  const facultyInitials = nameParts.map((part) => part[0]).join('').slice(0, 2).toUpperCase();
 
-  const [location, setLocation] =
-    useLocation();
+  const { pathname: location } = useLocation();
+  const navigate = useNavigate();
+  const [facultySubmissions, setFacultySubmissions] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    submissionService.listForFaculty(token)
+      .then((submissions) => {
+        if (!cancelled) setFacultySubmissions(submissions);
+      })
+      .catch((error) => {
+        console.error('Unable to load the faculty review count:', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [location, token]);
 
   const pageName =
     location
       .split('/')[1]
       ?.replaceAll('-', ' ') ||
     'dashboard';
-    const evaluationQueueCount =
-  getSubmissions().filter((submission) => {
-    const evaluation =
-      getEvaluation(submission.id);
-
-    return (
-      submission.hasSubmittedCode &&
-      evaluation?.status !== 'Published'
-    );
-  }).length;
-
-  /*
-   * GLOBAL CERA SEARCH
-   *
-   * Uses the existing navSections data.
-   * No separate hardcoded route list.
-   */
-  const handleGlobalSearch = (event) => {
-    if (event.key !== 'Enter') {
-      return;
-    }
-
-    const query = event.target.value
-      .trim()
-      .toLowerCase();
-
-    if (!query) {
-      return;
-    }
-
-    /*
-     * Flatten the existing navigation
-     * configuration into one searchable list.
-     */
-    const navigationItems =
-      navSections.flatMap(
-        (section) => section.items
-      );
-
-    /*
-     * Search by the existing navigation label.
-     *
-     * First preference:
-     * label starts with the search text.
-     *
-     * Second preference:
-     * label contains the search text.
-     */
-    const match =
-      navigationItems.find(
-        ([label]) =>
-          label
-            .toLowerCase()
-            .startsWith(query)
-      ) ||
-      navigationItems.find(
-        ([label]) =>
-          label
-            .toLowerCase()
-            .includes(query)
-      );
-
-    if (!match) {
-      notify(
-        'No matching CERA page found'
-      );
-      return;
-    }
-
-    const [, route] = match;
-
-    setLocation(route);
-
-    event.target.value = '';
-  };
+  const evaluationQueueCount = facultySubmissions.filter((submission) => (
+    submission.hasSubmittedCode
+    && submission.evaluation?.status !== 'published'
+  )).length;
 
   const handleSignOut = async () => {
     await logout();
     notify('Signed out of CERA');
-    setLocation('/login');
+    navigate('/login');
   };
 
   return (
@@ -293,7 +226,7 @@ export default function FacultyLayout({
                     'linear-gradient(135deg,#22D3EE,#6366F1)',
                 }}
               >
-                {`${profile.firstName?.[0] || ''}${profile.lastName?.[0] || ''}`.toUpperCase()}
+                {facultyInitials}
               </div>
 
               <div
@@ -307,8 +240,7 @@ export default function FacultyLayout({
                     fontWeight: 700,
                   }}
                 >
-                  {profile.firstName}{' '}
-                  {profile.lastName}
+                  {facultyName}
                 </div>
 
                 <div
@@ -318,7 +250,7 @@ export default function FacultyLayout({
                       'var(--muted)',
                   }}
                 >
-                  Computer Science
+                  {user?.department || 'Faculty'}
                 </div>
               </div>
 
@@ -356,7 +288,7 @@ export default function FacultyLayout({
                 }}
               >
                 <Link
-                  href="/profile"
+                  to="/profile"
                   className="sidebar-link"
                   onClick={() =>
                     setProfileMenuOpen(
@@ -398,17 +330,14 @@ export default function FacultyLayout({
                   ]) => (
                     <Link
                       key={href}
-                      href={href}
+                      to={href}
                       className={`sidebar-link ${
                         location === href ||
-                        (href !==
-                          '/dashboard' &&
-                          location.startsWith(
-                            href + '/'
-                          ))
+                        (href === '/students' && location.startsWith('/students/') && location !== '/students/academic-years') ||
+                        (href !== '/dashboard' && href !== '/students' && location.startsWith(href + '/'))
                           ? 'active'
                           : ''
-                      }`}
+                      } ${href === '/students/academic-years' ? 'ml-3 text-xs' : ''}`}
                       onClick={() =>
                         setOpen(false)
                       }
@@ -459,7 +388,7 @@ export default function FacultyLayout({
           }}
         >
           <Link
-            href="/notifications"
+            to="/notifications"
             className="sidebar-link"
           >
             <Bell size={16} />
@@ -481,8 +410,8 @@ export default function FacultyLayout({
           </Link>
 
           <Link
-            href="/settings"
-            className="sidebar-link"
+            to="/settings"
+            className={`sidebar-link ${location === '/settings' ? 'active' : ''}`}
           >
             <Settings2 size={16} />
 
@@ -573,21 +502,8 @@ export default function FacultyLayout({
               alignItems: 'center',
             }}
           >
-            <div className="search-box hide-mobile">
-              <Search size={15} />
-
-              <input
-                className="input"
-                placeholder="Search CERA..."
-                aria-label="Search CERA"
-                onKeyDown={
-                  handleGlobalSearch
-                }
-              />
-            </div>
-
             <Link
-              href="/notifications"
+              to="/notifications"
               className="icon-btn"
               aria-label="Notifications"
               data-testid="link-notifications"
@@ -618,14 +534,6 @@ export default function FacultyLayout({
                     ? 'light'
                     : 'dark'
                 );
-
-                notify(
-                  `${
-                    theme === 'dark'
-                      ? 'Light'
-                      : 'Dark'
-                  } theme enabled`
-                );
               }}
               aria-label="Toggle theme"
               data-testid="button-theme-toggle"
@@ -638,7 +546,7 @@ export default function FacultyLayout({
             </button>
 
             <Link
-              href="/profile"
+              to="/profile"
               className="avatar"
               style={{
                 width: 33,
@@ -646,7 +554,7 @@ export default function FacultyLayout({
               }}
               aria-label="Open profile"
             >
-              {`${profile.firstName?.[0] || ''}${profile.lastName?.[0] || ''}`.toUpperCase()}
+              {facultyInitials}
             </Link>
           </div>
         </header>

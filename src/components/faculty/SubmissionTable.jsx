@@ -1,4 +1,5 @@
-
+import { useNavigate } from 'react-router-dom';
+import { formatDateTime } from '../../utils/formatDate.js';
 
 function Avatar({ children, color }) {
   return (
@@ -24,12 +25,14 @@ function Status({ children, tone = 'neutral' }) {
   );
 }
 
-export default function SubmissionTable({ rows = [] }) {  return (
+export default function SubmissionTable({ rows = [] }) {
+  const navigate = useNavigate();
+  return (
     <div className="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Submission</th>
+            <th>Student</th>
             <th>Assignment</th>
             <th>Language</th>
             <th>Score</th>
@@ -40,36 +43,35 @@ export default function SubmissionTable({ rows = [] }) {  return (
 
         <tbody>
           {rows.map((s) => (
-            <tr key={s.id}>
+            <tr
+              key={s.id}
+              role="link"
+              tabIndex={0}
+              onClick={() => navigate(`/submissions/${s.id}`)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  navigate(`/submissions/${s.id}`);
+                }
+              }}
+              style={{ cursor: 'pointer' }}
+            >
               <td>
-                <a
-                  href={`/submissions/${s.id}`}
-                  style={{
-                    color: 'var(--text)',
-                    fontWeight: 700,
-                    textDecoration: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {s.id}
-                </a>
-
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 7,
-                    marginTop: 6,
+                    gap: 9,
                   }}
                 >
                   <Avatar>
-                    {s.student
+                    {(s.student || 'Student')
                       .split(' ')
                       .map((x) => x[0])
                       .join('')}
                   </Avatar>
 
-                  {s.student}
+                  <span style={{ color: 'var(--text)', fontWeight: 700 }}>{s.student}</span>
                 </div>
               </td>
 
@@ -90,33 +92,35 @@ export default function SubmissionTable({ rows = [] }) {  return (
                 <span
                   style={{
                     color:
-                      s.score > 80
+                      s.score === undefined
+                        ? 'var(--muted)'
+                        : Number(s.score) >= Number(s.maxScore) * 0.8
                         ? 'var(--success)'
-                        : s.score > 60
+                        : Number(s.score) >= Number(s.maxScore) * 0.6
                           ? 'var(--warning)'
                           : 'var(--error)',
                     font: '700 12px var(--app-font-mono)',
                   }}
                 >
-                  {s.score}/100
+                      {s.score === undefined ? '—' : `${s.score}/${s.maxScore ?? '—'}`}
                 </span>
               </td>
 
               <td>
                 <Status
                   tone={
-                    s.result === 'Passed'
+                    s.result === 'published'
                       ? 'success'
-                      : s.result === 'Failed'
-                        ? 'error'
-                        : 'warning'
+                      : s.result === 'draft'
+                        ? 'warning'
+                        : 'neutral'
                   }
                 >
-                  {s.result}
+                  {s.result === 'published' ? 'Published' : s.result === 'draft' ? 'Draft saved' : 'Needs review'}
                 </Status>
               </td>
 
-              <td>{s.submitted}</td>
+              <td>{formatDateTime(s.submitted)}</td>
             </tr>
           ))}
         </tbody>

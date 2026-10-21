@@ -43,11 +43,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <ThemeProvider>
-          <AppProvider>
+        <AppProvider>
+          <ThemeProvider>
             <AppContent />
-          </AppProvider>
-        </ThemeProvider>
+          </ThemeProvider>
+        </AppProvider>
       </AuthProvider>
     </BrowserRouter>
   );

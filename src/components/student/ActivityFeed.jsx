@@ -1,12 +1,12 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { formatDate } from '../../utils/formatDate.js';
 
 export default function ActivityFeed({ submissions }) {
   const navigate = useNavigate();
 
   const getStatusColor = (status) => {
-    if (status === 'Passed') return 'bg-cera-success';
-    if (status === 'Failed') return 'bg-cera-error';
+    if (status === 'published') return 'bg-cera-success';
     return 'bg-cera-warning';
   };
 
@@ -23,13 +23,15 @@ export default function ActivityFeed({ submissions }) {
             onClick={() => navigate(`/student/submissions/${sub.id}`)}
             className="flex items-center gap-3 cursor-pointer hover:bg-cera-elevated/50 p-2 rounded-lg transition-colors"
           >
-            <div className={`w-2 h-2 rounded-full ${getStatusColor(sub.status)} shrink-0`} />
+            <div className={`w-2 h-2 rounded-full ${getStatusColor(sub.evaluation?.status)} shrink-0`} />
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-cera-text truncate">{sub.problem}</p>
-              <p className="text-xs text-cera-muted">{sub.language} · {sub.testCasesPassed}/{sub.totalTestCases} tests</p>
+              <p className="text-sm text-cera-text truncate">{sub.assignment}</p>
+              <p className="text-xs text-cera-muted">
+                {sub.language} · {sub.evaluation?.status === 'published' ? 'Feedback published' : 'Awaiting review'}
+              </p>
             </div>
             <span className="text-xs text-cera-muted shrink-0">
-              {new Date(sub.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {formatDate(sub.submittedAt, { year: undefined })}
             </span>
           </motion.div>
         ))}

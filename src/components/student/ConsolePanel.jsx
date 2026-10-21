@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Terminal, CheckCircle, XCircle, Clock, Cpu } from 'lucide-react';
+import { Terminal, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 export default function ConsolePanel({ output, executionTime, memoryUsage, status, running }) {
   return (
@@ -23,7 +23,7 @@ export default function ConsolePanel({ output, executionTime, memoryUsage, statu
             <div className="flex items-center gap-2 mb-3">
               {status === 'Passed' || status === 'Success' ? (
                 <CheckCircle size={16} className="text-cera-success" />
-              ) : status === 'Failed' ? (
+              ) : status === 'Failed' || status === 'Error' || status === 'Timeout' || status === 'Unavailable' ? (
                 <XCircle size={16} className="text-cera-error" />
               ) : null}
               <span className={`text-sm font-medium ${status === 'Passed' || status === 'Success' ? 'text-cera-success' : 'text-cera-error'}`}>
@@ -33,14 +33,14 @@ export default function ConsolePanel({ output, executionTime, memoryUsage, statu
             <pre className="text-sm text-cera-text font-mono whitespace-pre-wrap bg-cera-bg/50 rounded-lg p-3 mb-3">
               {output}
             </pre>
-            <div className="flex items-center gap-4 text-xs text-cera-muted font-mono">
-              <span className="flex items-center gap-1">
-                <Clock size={12} /> {executionTime}ms
-              </span>
-              <span className="flex items-center gap-1">
-                <Cpu size={12} /> {memoryUsage}MB
-              </span>
-            </div>
+            {Number.isFinite(executionTime) && (
+              <div className="flex items-center gap-4 text-xs text-cera-muted font-mono">
+                <span className="flex items-center gap-1">
+                  <Clock size={12} /> {executionTime}ms
+                </span>
+                {Number.isFinite(memoryUsage) && <span>{memoryUsage}MB</span>}
+              </div>
+            )}
           </>
         ) : (
           <p className="text-sm text-cera-muted">Run your code to see output here.</p>

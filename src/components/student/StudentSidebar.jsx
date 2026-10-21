@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import {
   BarChart3,
   Bell,
-  ChevronDown,
   FileCode2,
   LayoutDashboard,
   ListChecks,
@@ -11,7 +9,6 @@ import {
   PanelLeftClose,
   Trophy,
   User,
-  Users,
 } from 'lucide-react';
 import ceraLogo from '../../assets/images/cera-logo.png';
 import { useTheme } from '../../context/ThemeContext';
@@ -40,7 +37,6 @@ export default function StudentSidebar() {
   const { mobileSidebarOpen, closeMobileSidebar } = useTheme();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const nameParts = (user?.name || 'Student').trim().split(/\s+/);
   const initials = nameParts.map((part) => part[0]).join('').slice(0, 2).toUpperCase();
@@ -77,39 +73,12 @@ export default function StudentSidebar() {
       </div>
 
       <div className="px-[10px] pb-[14px]">
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setProfileMenuOpen((open) => !open)}
-            className="flex w-full items-center gap-[9px] rounded-[9px] border border-cera-border bg-cera-elevated p-[10px] text-left text-cera-text"
-            aria-expanded={profileMenuOpen}
-            aria-label="Open student profile menu"
-          >
-            <span className="avatar" style={{ background: 'linear-gradient(135deg,#22D3EE,#6366F1)' }}>{initials}</span>
-            <span className="min-w-0">
-              <span className="block truncate text-xs font-bold">{user?.name || 'Student'}</span>
-              <span className="block truncate text-[10px] text-cera-muted">Student Portal</span>
-            </span>
-            <ChevronDown
-              size={14}
-              className={`ml-auto shrink-0 text-cera-muted transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`}
-            />
-          </button>
-          {profileMenuOpen && (
-            <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 rounded-[9px] border border-cera-border bg-cera-elevated p-1.5 shadow-xl">
-              <Link
-                to="/student/profile"
-                className="sidebar-link"
-                onClick={() => {
-                  setProfileMenuOpen(false);
-                  closeMobileSidebar();
-                }}
-              >
-                <Users size={16} />
-                <span>View profile</span>
-              </Link>
-            </div>
-          )}
+        <div className="flex w-full items-center gap-[9px] rounded-[9px] border border-cera-border bg-cera-elevated p-[10px] text-left text-cera-text">
+          <span className="avatar" style={{ background: 'linear-gradient(135deg,#22D3EE,#6366F1)' }}>{initials}</span>
+          <span className="min-w-0">
+            <span className="block truncate text-xs font-bold">{user?.name || 'Student'}</span>
+            <span className="block truncate text-[10px] text-cera-muted">Student Portal</span>
+          </span>
         </div>
       </div>
 

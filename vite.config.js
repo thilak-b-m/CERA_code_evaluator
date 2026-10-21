@@ -11,6 +11,13 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 const basePath = process.env.BASE_PATH || '/';
+const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:3000';
+const apiProxy = {
+  '/api': {
+    target: apiProxyTarget,
+    changeOrigin: true,
+  },
+};
 
 export default defineConfig({
   base: basePath,
@@ -39,6 +46,7 @@ export default defineConfig({
     strictPort: false,
     host: '0.0.0.0',
     allowedHosts: true,
+    proxy: apiProxy,
     fs: {
       strict: true,
     },
@@ -49,5 +57,6 @@ export default defineConfig({
     strictPort: false,
     host: '0.0.0.0',
     allowedHosts: true,
+    proxy: apiProxy,
   },
 });

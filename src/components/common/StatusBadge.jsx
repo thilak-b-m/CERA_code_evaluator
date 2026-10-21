@@ -9,6 +9,7 @@ const config = {
   'Not Started': { color: 'text-cera-muted', bg: 'bg-cera-muted/10', border: 'border-cera-muted/30', icon: MinusCircle },
   'In Progress': { color: 'text-cera-warning', bg: 'bg-cera-warning/10', border: 'border-cera-warning/30', icon: Clock },
   Submitted: { color: 'text-cera-primary', bg: 'bg-cera-primary/10', border: 'border-cera-primary/30', icon: CheckCircle },
+  'Auto-Submitted': { color: 'text-cera-warning', bg: 'bg-cera-warning/10', border: 'border-cera-warning/30', icon: AlertCircle },
   Completed: { color: 'text-cera-success', bg: 'bg-cera-success/10', border: 'border-cera-success/30', icon: CheckCircle },
   Expired: { color: 'text-cera-error', bg: 'bg-cera-error/10', border: 'border-cera-error/30', icon: XCircle },
   Solved: { color: 'text-cera-success', bg: 'bg-cera-success/10', border: 'border-cera-success/30', icon: CheckCircle },

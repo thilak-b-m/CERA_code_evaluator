@@ -1,74 +1,38 @@
-import {
-  submissions,
-  submissionEvaluationData,
-  submissionExecutionData,
-  submissionQualityData,
-} from '../data/facultyMockData.js';
-
-function enrichSubmission(submission) {
-  if (!submission) {
-    return null;
-  }
-
-  const evaluationData =
-    submissionEvaluationData[submission.id] || null;
-
-  const executionData =
-    submissionExecutionData[submission.id] || null;
-
-  const qualityData =
-    submissionQualityData[submission.id] || null;
-
-  const hasSubmittedCode =
-    Boolean(evaluationData?.submittedCode);
-
-  return {
-    ...submission,
-
-    evidence: {
-      submittedCode:
-        evaluationData?.submittedCode || null,
-
-      aiSignal:
-        evaluationData?.aiSignal || null,
-
-      execution:
-        executionData,
-
-      quality:
-        qualityData,
-    },
-
-    hasSubmittedCode,
-
-    aiScore:
-      hasSubmittedCode
-        ? submission.score
-        : null,
-  };
-}
-
-export function getSubmissions() {
-  return submissions.map(
-    enrichSubmission
-  );
-}
-
-export function getSubmissionById(id) {
-  const submission =
-    submissions.find(
-      (item) => item.id === id
-    );
-
-  return enrichSubmission(
-    submission
-  );
-}
+import { api } from './api.js';
 
 export const submissionService = {
-  list: async () =>
-    getSubmissions(),
+  listForFaculty: async (token, assignmentId) => {
+    const query = assignmentId ? `?assignmentId=${encodeURIComponent(assignmentId)}` : '';
+    const result = await api.request(`/api/submissions/faculty${query}`, { token });
+    return result.submissions.map((submission) => ({
+      ...submission,
+      student: submission.studentName || 'Unknown student',
+      assignment: submission.assignmentTitle || 'Untitled assignment',
+      submitted: submission.submittedAt,
+      lang: submission.language,
+      hasSubmittedCode: Boolean(submission.code),
+      score: submission.evaluation?.score,
+      result: submission.evaluation?.status || 'Needs review',
+      evidence: { submittedCode: submission.code },
+    }));
+  },
 
-  get: async (id) =>
-    getSubmissionById(id),
+  getForFaculty: async (id, token) => {
+    const result = await api.request(
+      `/api/submissions/faculty/${encodeURIComponent(id)}`,
+      { token },
+    );
+    const submission = result.submission;
+    return {
+      ...submission,
+      student: submission.studentName || 'Unknown student',
+      assignment: submission.assignmentTitle || 'Untitled assignment',
+      submitted: submission.submittedAt,
+      lang: submission.language,
+      hasSubmittedCode: Boolean(submission.code),
+      score: submission.evaluation?.score,
+      result: submission.evaluation?.status || 'Needs review',
+      evidence: { submittedCode: submission.code },
+    };
+  },
 };

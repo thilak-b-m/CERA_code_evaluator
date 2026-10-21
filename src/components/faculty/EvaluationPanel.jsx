@@ -1,1 +1,0 @@
-export default function EvaluationPanel({ children }) { return <section className="panel">{children}</section>; }

@@ -1,1 +1,0 @@
-export { Chart as default } from '../../App.jsx';

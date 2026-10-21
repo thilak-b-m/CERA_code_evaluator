@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'wouter';
+import { useNavigate } from 'react-router-dom';
 
 import {
   Check,
@@ -9,16 +9,19 @@ import {
   Send,
   X,
   CheckCircle2,
-  Search,
+  Filter,
 } from 'lucide-react';
 
 import Page from '../../components/common/Page.jsx';
+import SearchBar from '../../components/common/SearchBar.jsx';
 import { useApp } from '../../context/AppContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { notificationService } from '../../services/notificationService.js';
 
 export default function Notifications() {
   const { notify } = useApp();
-  const [, setLocation] = useLocation();
+  const { token } = useAuth();
+  const navigate = useNavigate();
 
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState('');
@@ -34,7 +37,7 @@ export default function Notifications() {
     const loadNotifications = async () => {
       try {
         const notifications =
-          await notificationService.list();
+          await notificationService.list(token);
 
         if (mounted) {
           setItems(notifications);
@@ -60,7 +63,7 @@ export default function Notifications() {
     return () => {
       mounted = false;
     };
-  }, [notify]);
+  }, [notify, token]);
 
   /* =========================
      SEARCH
@@ -120,7 +123,7 @@ export default function Notifications() {
 
     try {
       const updated =
-        await notificationService.markAllAsRead();
+        await notificationService.markAllAsRead(token);
 
       setItems(updated);
 
@@ -148,7 +151,8 @@ export default function Notifications() {
       if (!notification.read) {
         const updated =
           await notificationService.markRead(
-            notification.id
+            notification.id,
+            token,
           );
 
         setItems(updated);
@@ -167,7 +171,7 @@ export default function Notifications() {
       return;
     }
 
-    setLocation(notification.route);
+    navigate(notification.route);
   };
 
   /* =========================
@@ -177,7 +181,7 @@ export default function Notifications() {
   const handleDismiss = async (id) => {
     try {
       const updated =
-        await notificationService.dismiss(id);
+        await notificationService.dismiss(id, token);
 
       setItems(updated);
 
@@ -254,60 +258,26 @@ export default function Notifications() {
       <div style={{ maxWidth: 820 }}>
         {/* SEARCH */}
 
-        <div
-          className="search-box"
-          style={{
-            marginBottom: 14,
-          }}
-        >
-          <Search size={15} />
-
-          <input
-            className="input"
-            type="text"
-            value={search}
-            onChange={(event) =>
-              setSearch(event.target.value)
-            }
-            placeholder="Search notifications..."
-            aria-label="Search notifications"
-          />
-        </div>
+        <SearchBar
+          value={search}
+          onChange={setSearch}
+          placeholder="Search notifications..."
+          className="mb-3"
+        />
 
         {/* SEARCH STATUS */}
 
         {search.trim() !== '' && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 10,
-              marginBottom: 14,
-              padding: '10px 12px',
-              background: 'var(--subtle)',
-              borderRadius: 8,
-              fontSize: 11,
-              color: 'var(--muted)',
-            }}
-          >
-            <span>
-              Showing{' '}
-              {filteredNotifications.length}{' '}
-              matching notification
-              {filteredNotifications.length !== 1
-                ? 's'
-                : ''}
+          <div className="mb-3 flex items-center justify-between gap-3 text-sm text-cera-muted">
+            <span className="flex items-center gap-2">
+              <Filter size={14} />
+              {filteredNotifications.length} matching notification{filteredNotifications.length !== 1 ? 's' : ''}
             </span>
 
             <button
               type="button"
-              className="btn btn-soft"
+              className="btn btn-ghost"
               onClick={handleClearSearch}
-              style={{
-                minHeight: 28,
-                padding: '0 9px',
-              }}
             >
               Clear search
             </button>

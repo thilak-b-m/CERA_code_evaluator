@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'wouter';
+import { Link } from 'react-router-dom';
 import {
   MoreHorizontal,
   Plus,
-  Search,
   Pencil,
   Eye,
   Trash2,
@@ -12,12 +11,15 @@ import {
 
 import Page from '../../components/common/Page.jsx';
 import Card from '../../components/common/Card.jsx';
+import SearchBar from '../../components/common/SearchBar.jsx';
 import {
   getAssignments,
   deleteAssignment,
   restoreAssignment,
 } from '../../services/assignmentService.js';
 import { useApp } from '../../context/AppContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { formatDate } from '../../utils/formatDate.js';
 
 export default function Assignments() {
   const [search, setSearch] = useState('');
@@ -27,14 +29,30 @@ export default function Assignments() {
   const [lastDeleted, setLastDeleted] = useState(null);
 
   const { notify } = useApp();
+  const { token } = useAuth();
+  const [loadError, setLoadError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   /* =========================
      LOAD ASSIGNMENTS
   ========================= */
 
   useEffect(() => {
-    setAssignmentList(getAssignments());
-  }, []);
+    let cancelled = false;
+    getAssignments(token)
+      .then((assignments) => {
+        if (!cancelled) setAssignmentList(assignments);
+      })
+      .catch((error) => {
+        if (!cancelled) setLoadError(error.message);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   /* =========================
      ASSIGNMENT STATUS
@@ -114,50 +132,45 @@ export default function Assignments() {
   const handleFilterChange = (filter) => {
     setActiveFilter(filter);
     setOpenMenu(null);
-
-    if (filter === 'all') {
-      notify('Showing all assignments');
-    } else if (filter === 'published') {
-      notify('Showing published assignments');
-    } else {
-      notify('Showing draft assignments');
-    }
   };
 
   /* =========================
      DELETE
   ========================= */
 
-  const handleDelete = (assignment) => {
+  const handleDelete = async (assignment) => {
     const confirmed = window.confirm(
       `Delete "${assignment.title}"?`
     );
 
     if (!confirmed) return;
 
-    deleteAssignment(assignment.id);
-
-    setAssignmentList(getAssignments());
-    setLastDeleted(assignment);
-    setOpenMenu(null);
-
-    notify(`"${assignment.title}" deleted`);
+    try {
+      await deleteAssignment(assignment.id, token);
+      setAssignmentList((current) => current.filter((item) => item.id !== assignment.id));
+      setLastDeleted(assignment);
+      setOpenMenu(null);
+      notify(`"${assignment.title}" deleted`);
+    } catch (error) {
+      notify(error.message || 'Unable to delete assignment');
+    }
   };
 
   /* =========================
      UNDO DELETE
   ========================= */
 
-  const handleUndo = () => {
+  const handleUndo = async () => {
     if (!lastDeleted) return;
 
-    restoreAssignment(lastDeleted);
-
-    setAssignmentList(getAssignments());
-
-    notify(`"${lastDeleted.title}" restored`);
-
-    setLastDeleted(null);
+    try {
+      await restoreAssignment(lastDeleted.id, token);
+      setAssignmentList((current) => [lastDeleted, ...current]);
+      notify(`"${lastDeleted.title}" restored`);
+      setLastDeleted(null);
+    } catch (error) {
+      notify(error.message || 'Unable to restore assignment');
+    }
   };
 
   /* =========================
@@ -174,7 +187,7 @@ export default function Assignments() {
       subtitle="Design, publish, and understand the work your students are doing."
       actions={
         <Link
-          href="/assignments/create"
+          to="/assignments/create"
           className="btn btn-primary"
         >
           <Plus size={15} />
@@ -182,78 +195,49 @@ export default function Assignments() {
         </Link>
       }
     >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          gap: 12,
-          marginBottom: 14,
-          flexWrap: 'wrap',
-        }}
-      >
-        {/* SEARCH */}
-
-        <div className="search-box">
-          <Search size={15} />
-
-          <input
-            className="input"
-            placeholder="Search assignments..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      {isLoading && (
+        <div className="panel" role="status">
+          Loading assignments...
         </div>
+      )}
 
-        {/* FILTERS */}
+      {!isLoading && loadError && (
+        <div className="panel" role="alert">
+          Unable to load assignments: {loadError}
+        </div>
+      )}
+
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <SearchBar
+          value={search}
+          onChange={setSearch}
+          placeholder="Search assignments..."
+          className="sm:flex-1"
+        />
 
         <div className="segmented">
           <button
             type="button"
-            className={
-              activeFilter === 'all'
-                ? 'active'
-                : ''
-            }
+            className={activeFilter === 'all' ? 'active' : ''}
             onClick={() => handleFilterChange('all')}
           >
-            All{' '}
-            <span style={{ color: 'var(--muted)' }}>
-              {assignmentList.length}
-            </span>
+            All {assignmentList.length}
           </button>
 
           <button
             type="button"
-            className={
-              activeFilter === 'published'
-                ? 'active'
-                : ''
-            }
-            onClick={() =>
-              handleFilterChange('published')
-            }
+            className={activeFilter === 'published' ? 'active' : ''}
+            onClick={() => handleFilterChange('published')}
           >
-            Published{' '}
-            <span style={{ color: 'var(--muted)' }}>
-              {publishedCount}
-            </span>
+            Published {publishedCount}
           </button>
 
           <button
             type="button"
-            className={
-              activeFilter === 'drafts'
-                ? 'active'
-                : ''
-            }
-            onClick={() =>
-              handleFilterChange('drafts')
-            }
+            className={activeFilter === 'drafts' ? 'active' : ''}
+            onClick={() => handleFilterChange('drafts')}
           >
-            Drafts{' '}
-            <span style={{ color: 'var(--muted)' }}>
-              {draftCount}
-            </span>
+            Drafts {draftCount}
           </button>
         </div>
       </div>
@@ -271,7 +255,7 @@ export default function Assignments() {
                 <th>Assignment</th>
                 <th>Course</th>
                 <th>Due</th>
-                <th>Progress</th>
+                <th>Status</th>
                 <th>Difficulty</th>
                 <th />
               </tr>
@@ -284,7 +268,7 @@ export default function Assignments() {
 
                   <td>
                     <Link
-                      href={`/assignments/${a.id}`}
+                      to={`/assignments/${a.id}`}
                       style={{
                         display: 'flex',
                         gap: 10,
@@ -305,16 +289,6 @@ export default function Assignments() {
                       <span>
                         {a.title}
 
-                        <small
-                          style={{
-                            display: 'block',
-                            color: 'var(--muted)',
-                            fontWeight: 400,
-                            marginTop: 4,
-                          }}
-                        >
-                          {a.id}
-                        </small>
                       </span>
                     </Link>
                   </td>
@@ -325,55 +299,15 @@ export default function Assignments() {
 
                   {/* DUE */}
 
-                  <td>{a.due}</td>
+                  <td>{formatDate(a.due)}</td>
 
-                  {/* PROGRESS */}
+                  {/* STATUS */}
 
                   <td>
-                    <div style={{ minWidth: 130 }}>
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          fontSize: 10,
-                          marginBottom: 5,
-                        }}
-                      >
-                        <span>
-                          {a.submissions}/{a.total}
-                        </span>
-
-                        <span
-                          style={{
-                            color: 'var(--success)',
-                          }}
-                        >
-                          {a.total
-                            ? Math.round(
-                                (a.submissions /
-                                  a.total) *
-                                  100
-                              )
-                            : 0}
-                          %
-                        </span>
-                      </div>
-
-                      <div className="progress">
-                        <span
-                          style={{
-                            width: `${
-                              a.total
-                                ? (a.submissions /
-                                    a.total) *
-                                  100
-                                : 0
-                            }%`,
-                            background: a.color,
-                          }}
-                        />
-                      </div>
-                    </div>
+                    <span className={`status status-${isPublished(a) ? 'success' : 'neutral'}`}>
+                      <span className="status-dot" />
+                      {isPublished(a) ? 'Published' : 'Draft'}
+                    </span>
                   </td>
 
                   {/* DIFFICULTY */}
@@ -426,7 +360,7 @@ export default function Assignments() {
                         {/* EDIT */}
 
                         <Link
-                          href={`/assignments/${a.id}/edit`}
+                          to={`/assignments/${a.id}/edit`}
                           onClick={closeMenu}
                           style={{
                             display: 'flex',
@@ -447,7 +381,7 @@ export default function Assignments() {
                         {/* VIEW */}
 
                         <Link
-                          href={`/assignments/${a.id}`}
+                          to={`/assignments/${a.id}`}
                           onClick={closeMenu}
                           style={{
                             display: 'flex',

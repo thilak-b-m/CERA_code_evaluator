@@ -10,6 +10,7 @@ export function errorHandler(error, request, response, next) {
   }
 
   response.status(statusCode).json({
-    error: statusCode >= 500 ? 'Internal server error.' : error.message,
+    error: statusCode >= 500 && !error.expose ? 'Internal server error.' : error.message,
+    message: statusCode >= 500 && !error.expose ? 'Internal server error.' : error.message,
   });
 }

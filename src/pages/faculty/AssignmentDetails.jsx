@@ -1,4 +1,5 @@
-import { useParams, useLocation } from 'wouter';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowRight,
   MoreHorizontal,
@@ -6,14 +7,17 @@ import {
   Target,
   Timer,
   Users,
+  TestTube2,
 } from 'lucide-react';
 
 import Page from '../../components/common/Page.jsx';
 import Card from '../../components/common/Card.jsx';
 import { useApp } from '../../context/AppContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { getAssignmentById } from '../../services/assignmentService.js';
-import { getSubmissions } from '../../services/submissionService.js';
-import { assignmentDetailsData } from '../../data/facultyMockData.js';
+import { submissionService } from '../../services/submissionService.js';
+import { studentService } from '../../services/studentService.js';
+import { formatDate, formatDateTime } from '../../utils/formatDate.js';
 
 function Kpi({
   icon: Icon,
@@ -63,17 +67,41 @@ function Status({
 
 export default function AssignmentDetails() {
   const { id } = useParams();
-  const [, navigate] = useLocation();
+  const navigate = useNavigate();
   const { notify } = useApp();
+  const { token } = useAuth();
 
-  const assignment = getAssignmentById(id);
-  const details = assignmentDetailsData[id] || null;
+  const [assignment, setAssignment] = useState(null);
+  const [assignmentSubmissions, setAssignmentSubmissions] = useState([]);
+  const [departmentStudents, setDepartmentStudents] = useState([]);
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    setAssignment(null);
+    setLoadError('');
+    Promise.all([
+      getAssignmentById(id, token),
+      submissionService.listForFaculty(token, id),
+      studentService.list(token),
+    ]).then(([result, submissions, students]) => {
+      if (cancelled) return;
+      setAssignment(result);
+      setAssignmentSubmissions(submissions);
+      setDepartmentStudents(students);
+    }).catch((error) => {
+      if (!cancelled) setLoadError(error.message || 'Unable to load assignment details.');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, token]);
 
   if (!assignment) {
     return (
       <Page
-        title="Assignment not found"
-        subtitle="The requested assignment could not be found."
+        title={loadError ? 'Assignment not found' : 'Loading assignment'}
+        subtitle={loadError || 'Loading assignment details...'}
       >
         <div
           className="panel"
@@ -82,37 +110,57 @@ export default function AssignmentDetails() {
             color: 'var(--muted)',
           }}
         >
-          This assignment does not exist.
+          {loadError || 'Please wait while assignment details load.'}
         </div>
       </Page>
     );
   }
 
-  const allSubmissions = getSubmissions();
-
-  const assignmentSubmissions =
-    allSubmissions.filter(
-      (submission) =>
-        submission.assignmentId === assignment.id
-    );
+  const publishedSubmissions = assignmentSubmissions.filter(
+    (submission) => submission.evaluation?.status === 'published',
+  );
+  const awaitingReviewCount = assignmentSubmissions.filter(
+    (submission) => submission.evaluation?.status !== 'published',
+  ).length;
+  const averagePublishedScore = publishedSubmissions.length
+    ? publishedSubmissions.reduce(
+      (total, submission) => total + (Number(submission.score) / Number(submission.maxScore)) * 100,
+      0,
+    ) / publishedSubmissions.length
+    : null;
+  const statusCounts = [
+    { label: 'Published', count: publishedSubmissions.length, tone: 'success' },
+    {
+      label: 'Draft saved',
+      count: assignmentSubmissions.filter((submission) => submission.evaluation?.status === 'draft').length,
+      tone: 'warning',
+    },
+    { label: 'Needs review', count: awaitingReviewCount - assignmentSubmissions.filter((submission) => submission.evaluation?.status === 'draft').length, tone: 'primary' },
+  ];
 
   const handleActions = () => {
     notify('Opening assignment editor');
 
     navigate(
       `/assignments/${assignment.id}/edit`
-    );
+      );
   };
-
-  const hasAnalytics = Boolean(details);
 
   return (
     <Page
-      eyebrow={`ASSIGNMENTS / ${assignment.id}`}
+      eyebrow="ASSIGNMENTS"
       title={assignment.title}
-      subtitle={`${assignment.course} · due ${assignment.due}`}
+      subtitle={`${assignment.course} · due ${formatDate(assignment.due)}`}
       actions={
         <>
+          <Link
+            to={`/test-cases/${encodeURIComponent(assignment.id)}`}
+            className="btn btn-ghost"
+          >
+            <TestTube2 size={15} />
+            Manage test cases
+          </Link>
+
           <button
             className="btn btn-ghost"
             onClick={handleActions}
@@ -121,13 +169,13 @@ export default function AssignmentDetails() {
             Actions
           </button>
 
-          <a
-            href="/submissions"
+          <Link
+            to="/submissions"
             className="btn btn-primary"
           >
             View submissions
             <ArrowRight size={14} />
-          </a>
+          </Link>
         </>
       }
     >
@@ -137,47 +185,32 @@ export default function AssignmentDetails() {
         <Kpi
           icon={Users}
           label="Students assigned"
-          value={assignment.total ?? 0}
-          trend={
-            details?.participation ||
-            'No participation data yet'
-          }
+          value={departmentStudents.length}
+          trend="Students in your department"
           color="var(--accent)"
         />
 
         <Kpi
           icon={Send}
           label="Submissions"
-          value={assignment.submissions ?? 0}
-          trend={
-            details?.submissionTrend ||
-            'No submission trend yet'
-          }
+          value={assignmentSubmissions.length}
+          trend="Submissions received"
           color="var(--primary)"
         />
 
         <Kpi
           icon={Target}
-          label="Pass rate"
-          value={details?.passRate || '—'}
-          trend={
-            details?.passRateTrend ||
-            'No pass-rate data yet'
-          }
+          label="Average published score"
+          value={averagePublishedScore === null ? '—' : `${averagePublishedScore.toFixed(1)}%`}
+          trend={`${publishedSubmissions.length} published evaluation${publishedSubmissions.length === 1 ? '' : 's'}`}
           color="var(--success)"
         />
 
         <Kpi
           icon={Timer}
-          label="Median runtime"
-          value={
-            details?.medianRuntime ||
-            '—'
-          }
-          trend={
-            details?.runtimeTrend ||
-            'No runtime data yet'
-          }
+          label="Awaiting review"
+          value={awaitingReviewCount}
+          trend="Submitted code not yet published"
           color="var(--warning)"
         />
       </div>
@@ -224,7 +257,7 @@ export default function AssignmentDetails() {
                 marginTop: 18,
               }}
             >
-              {details?.languages?.map(
+              {assignment.languages?.map(
                 (language) => (
                   <Status
                     key={language}
@@ -233,18 +266,6 @@ export default function AssignmentDetails() {
                     {language}
                   </Status>
                 )
-              )}
-
-              {details?.testCases != null && (
-                <Status tone="neutral">
-                  {details.testCases} test cases
-                </Status>
-              )}
-
-              {!hasAnalytics && (
-                <Status tone="neutral">
-                  Test cases not configured
-                </Status>
               )}
 
               {assignment.timeLimit && (
@@ -275,13 +296,7 @@ export default function AssignmentDetails() {
               gap: 14,
             }}
           >
-            {details?.qualitySignals?.length ? (
-              details.qualitySignals.map(
-                ({
-                  label,
-                  value,
-                  tone,
-                }) => (
+            {statusCounts.map(({ label, count, tone }) => (
                   <div key={label}>
                     <div
                       style={{
@@ -296,27 +311,21 @@ export default function AssignmentDetails() {
                         {label}
                       </span>
 
-                      <span
-                        style={{
-                          color:
-                            `var(--${tone})`,
-                        }}
-                      >
-                        {value}
-                      </span>
+                      <span style={{ color: `var(--${tone})` }}>{count}</span>
                     </div>
 
                     <div className="progress">
                       <span
                         style={{
-                          width: value,
+                          width: assignmentSubmissions.length
+                            ? `${Math.round((count / assignmentSubmissions.length) * 100)}%`
+                            : '0%',
                         }}
                       />
                     </div>
                   </div>
-                )
-              )
-            ) : (
+            ))}
+            {!assignmentSubmissions.length && (
               <div
                 style={{
                   color: 'var(--muted)',
@@ -324,9 +333,7 @@ export default function AssignmentDetails() {
                   lineHeight: 1.6,
                 }}
               >
-                Quality signals will appear once
-                students submit work and evaluation
-                data becomes available.
+                No submissions have been received for this assignment yet.
               </div>
             )}
           </div>
@@ -344,21 +351,19 @@ export default function AssignmentDetails() {
           title="Latest submissions"
           kicker="Most recently received work"
           action={
-            <a
-              href="/submissions"
+            <Link
+              to="/submissions"
               className="btn btn-ghost"
             >
               Open all
-            </a>
+            </Link>
           }
         >
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>
-                    Submission
-                  </th>
+                  <th>Received</th>
 
                   <th>
                     Student
@@ -381,24 +386,17 @@ export default function AssignmentDetails() {
               <tbody>
                 {assignmentSubmissions.length > 0 ? (
                   assignmentSubmissions.map(
-                    (submission) => (
-                      <tr key={submission.id}>
-                        <td
-                          style={{
-                            fontFamily:
-                              'var(--app-font-mono)',
-                          }}
-                        >
-                          {submission.id}
-                        </td>
+                  (submission) => (
+                    <tr key={submission.id}>
+                      <td>{formatDateTime(submission.submitted)}</td>
 
-                        <td>
-                          {submission.student}
+                      <td>
+                        <Link to={`/submissions/${submission.id}`}>{submission.student}</Link>
                         </td>
 
                         <td>
                           {submission.score != null
-                            ? `${submission.score}/100`
+                            ? `${submission.score}/${submission.maxScore ?? '—'}`
                             : '—'}
                         </td>
 
@@ -406,15 +404,15 @@ export default function AssignmentDetails() {
                           <Status
                             tone={
                               submission.result ===
-                              'Passed'
+                              'published'
                                 ? 'success'
                                 : submission.result ===
-                                  'Failed'
-                                ? 'error'
-                                : 'warning'
+                                  'draft'
+                                ? 'warning'
+                                : 'neutral'
                             }
                           >
-                            {submission.result}
+                            {submission.result === 'published' ? 'Published' : submission.result === 'draft' ? 'Draft saved' : 'Needs review'}
                           </Status>
                         </td>
 

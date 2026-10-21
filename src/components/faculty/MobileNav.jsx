@@ -1,2 +1,0 @@
-import { Menu } from 'lucide-react';
-export default function MobileNav({ onOpen }) { return <button className="icon-btn mobile-menu" onClick={onOpen} aria-label="Open navigation"><Menu size={19} /></button>; }

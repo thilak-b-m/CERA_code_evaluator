@@ -1,39 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { Menu, Search, Bell, Moon, Sun } from 'lucide-react';
+import { Menu, Bell, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { notifications } from '../../data/studentMockData';
-
-const searchablePages = [
-  { label: 'Dashboard', path: '/student/dashboard' },
-  { label: 'Assignments', path: '/student/assignments' },
-  { label: 'Submissions', path: '/student/submissions' },
-  { label: 'Results', path: '/student/results' },
-  { label: 'Leaderboard', path: '/student/leaderboard' },
-  { label: 'Notifications', path: '/student/notifications' },
-  { label: 'Profile', path: '/student/profile' },
-];
 
 export default function StudentNavbar({ title }) {
   const { theme, setTheme, toggleMobileSidebar } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const unreadCount = notifications.filter((notification) => !notification.read).length;
-
-  const handleGlobalSearch = (event) => {
-    if (event.key !== 'Enter') return;
-
-    const query = event.target.value.trim().toLowerCase();
-    if (!query) return;
-
-    const match = searchablePages.find(({ label }) => label.toLowerCase().startsWith(query))
-      || searchablePages.find(({ label }) => label.toLowerCase().includes(query));
-
-    if (match) {
-      navigate(match.path);
-      event.target.value = '';
-    }
-  };
 
   return (
     <header className="topbar">
@@ -46,24 +19,14 @@ export default function StudentNavbar({ title }) {
         >
           <Menu size={19} />
         </button>
-        <div className="text-xs text-cera-muted capitalize">
+        <nav className="text-xs text-cera-muted" aria-label="Breadcrumb">
           Workspace
           <span className="mx-2 opacity-50">/</span>
-          <span className="text-cera-text">{title.toLowerCase()}</span>
-        </div>
+          <span className="text-cera-text font-medium">{title}</span>
+        </nav>
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="search-box hide-mobile">
-          <Search size={15} />
-          <input
-            className="input"
-            placeholder="Search CERA..."
-            aria-label="Search CERA"
-            onKeyDown={handleGlobalSearch}
-          />
-        </div>
-
         <button
           type="button"
           className="icon-btn"
@@ -71,18 +34,6 @@ export default function StudentNavbar({ title }) {
           aria-label="Notifications"
         >
           <Bell size={18} />
-          {unreadCount > 0 && (
-            <span
-              style={{
-                position: 'absolute',
-                margin: '-18px 0 0 16px',
-                width: 6,
-                height: 6,
-                borderRadius: 6,
-                background: 'var(--accent)',
-              }}
-            />
-          )}
         </button>
 
         <button

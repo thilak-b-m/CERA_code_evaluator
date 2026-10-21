@@ -1,1 +1,0 @@
-export default function RiskOverviewCard({ count = 3 }) { return <div className="panel" style={{ padding: 18 }}><div className="panel-kicker">INTEGRITY RISKS</div><div style={{ font: '24px var(--app-font-mono)', color: 'var(--warning)', marginTop: 8 }}>{count}</div></div>; }

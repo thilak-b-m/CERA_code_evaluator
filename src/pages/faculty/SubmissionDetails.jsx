@@ -1,15 +1,16 @@
-import { Link, useParams, useLocation } from 'wouter';
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import {
   ClipboardCheck,
   Copy,
-  GitCompare,
-  CheckCircle2,
 } from 'lucide-react';
 
 import Page from '../../components/common/Page.jsx';
 import { useApp } from '../../context/AppContext.jsx';
-import { getSubmissionById } from '../../services/submissionService.js';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { submissionService } from '../../services/submissionService.js';
 import { getEvaluation } from '../../services/evaluationService.js';
+import { formatDateTime } from '../../utils/formatDate.js';
 
 function Section({
   title,
@@ -56,22 +57,38 @@ function Status({
 
 export default function SubmissionDetails() {
   const { id } = useParams();
-  const [, navigate] = useLocation();
   const { notify } = useApp();
+  const { token } = useAuth();
+  const [sub, setSubmission] = useState(null);
+  const [evaluation, setEvaluation] = useState(null);
+  const [loadError, setLoadError] = useState('');
 
-  /*
-   * Get the submission through the service layer.
-   * The service derives submitted-code availability
-   * from the available submission evidence.
-   */
-  const sub = getSubmissionById(id);
+  useEffect(() => {
+    let cancelled = false;
+    setSubmission(null);
+    setEvaluation(null);
+    setLoadError('');
+    Promise.all([
+      submissionService.getForFaculty(id, token),
+      getEvaluation(id, token),
+    ]).then(([submission, savedEvaluation]) => {
+      if (cancelled) return;
+      setSubmission(submission);
+      setEvaluation(savedEvaluation);
+    }).catch((error) => {
+      if (!cancelled) setLoadError(error.message || 'Unable to load submission.');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, token]);
 
-  if (!sub) {
+  if (!sub && !loadError) {
     return (
       <Page
         eyebrow="SUBMISSIONS"
-        title="Submission not found"
-        subtitle="The requested submission could not be found."
+        title="Loading submission"
+        subtitle="Loading submitted code and review status."
       >
         <section className="panel">
           <div style={{ padding: 20 }}>
@@ -82,10 +99,20 @@ export default function SubmissionDetails() {
                 fontSize: 12,
               }}
             >
-              No submission exists for this ID.
+              Loading submission...
             </p>
           </div>
         </section>
+      </Page>
+    );
+  }
+
+  if (loadError || !sub) {
+    return (
+      <Page eyebrow="SUBMISSIONS" title="Submission unavailable" subtitle={loadError}>
+        <div role="alert" className="panel" style={{ padding: 20 }}>
+          {loadError || 'Submission not found.'}
+        </div>
       </Page>
     );
   }
@@ -97,44 +124,9 @@ export default function SubmissionDetails() {
   const hasSubmittedCode =
     sub.hasSubmittedCode;
 
-  /*
-   * Evidence assembled by submissionService.
-   */
   const submittedCode =
     sub.evidence?.submittedCode ||
     null;
-
-  const executionData =
-    sub.evidence?.execution ||
-    null;
-
-  const qualityData =
-    sub.evidence?.quality ||
-    null;
-
-  /*
-   * Faculty evaluation is meaningful only when
-   * submitted code exists.
-   */
-  const evaluation =
-    hasSubmittedCode
-      ? getEvaluation(sub.id)
-      : null;
-
-  /*
-   * Score hierarchy:
-   *
-   * 1. Published faculty evaluation
-   * 2. AI/automated score when code exists
-   * 3. No score
-   *
-   * We deliberately do not use the raw submission
-   * score when submitted code is unavailable.
-   */
-  const displayedScore =
-    evaluation?.status === 'Published'
-      ? evaluation.score
-      : sub.aiScore;
 
   /*
    * COPY CODE
@@ -167,45 +159,15 @@ export default function SubmissionDetails() {
     }
   };
 
-  /*
-   * COMPARE
-   */
-  const handleCompare = () => {
-    if (!hasSubmittedCode) {
-      notify(
-        'Code comparison is unavailable because submitted code is missing'
-      );
-      return;
-    }
-
-    notify(
-      `Opening comparison for ${sub.id}`
-    );
-
-    navigate(
-      `/plagiarism/compare/${sub.id}`
-    );
-  };
-
   return (
     <Page
-      eyebrow={`SUBMISSIONS / ${sub.id}`}
-      title={sub.id}
-      subtitle={`${sub.student} · ${sub.assignment} · submitted ${sub.submitted}`}
+      eyebrow="SUBMISSIONS"
+      title={`${sub.student} · ${sub.assignment}`}
+      subtitle={`Submitted ${formatDateTime(sub.submitted)}`}
       actions={
         <>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={handleCompare}
-            disabled={!hasSubmittedCode}
-          >
-            <GitCompare size={14} />
-            Compare
-          </button>
-
           <Link
-            href={`/evaluation/${sub.id}`}
+            to={`/evaluation/${sub.id}`}
             className="btn btn-primary"
           >
             <ClipboardCheck size={14} />
@@ -284,8 +246,8 @@ export default function SubmissionDetails() {
               font: '16px var(--app-font-mono)',
             }}
           >
-            {displayedScore ?? '—'}
-            {displayedScore != null && '/100'}
+            {evaluation?.status === 'published' ? evaluation.score : '—'}
+            {evaluation?.status === 'published' && `/${sub.maxScore ?? '—'}`}
           </div>
         </div>
 
@@ -303,7 +265,7 @@ export default function SubmissionDetails() {
               <Status
                 tone={
                   evaluation.status ===
-                  'Published'
+                  'published'
                     ? 'success'
                     : 'neutral'
                 }
@@ -400,114 +362,17 @@ export default function SubmissionDetails() {
 
           <Section
             title="Execution result"
-            kicker="Automated test suite"
+            kicker="Unavailable"
           >
             <div
               style={{
                 padding: 20,
+                color: 'var(--muted)',
+                fontSize: 12,
+                lineHeight: 1.6,
               }}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent:
-                    'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <Status
-                  tone={
-                    executionData
-                      ? 'success'
-                      : 'neutral'
-                  }
-                >
-                  {executionData
-                    ? `Passed ${executionData.passed} / ${executionData.total}`
-                    : 'No result available'}
-                </Status>
-
-                {executionData && (
-                  <span
-                    style={{
-                      font:
-                        '12px var(--app-font-mono)',
-                    }}
-                  >
-                    {executionData.time}
-                  </span>
-                )}
-              </div>
-
-              <div
-                style={{
-                  marginTop: 20,
-                  display: 'grid',
-                  gap: 9,
-                }}
-              >
-                {executionData ? (
-                  executionData.tests.map(
-                    (test) => (
-                      <div
-                        key={test.name}
-                        style={{
-                          display: 'flex',
-                          justifyContent:
-                            'space-between',
-                          padding: '9px 0',
-                          borderBottom:
-                            '1px solid var(--border)',
-                          fontSize: 11,
-                        }}
-                      >
-                        <span>
-                          <CheckCircle2
-                            size={13}
-                            color={
-                              test.status ===
-                              'Timeout'
-                                ? 'var(--warning)'
-                                : 'var(--success)'
-                            }
-                            style={{
-                              verticalAlign:
-                                'middle',
-                              marginRight: 7,
-                            }}
-                          />
-
-                          {test.name}
-                        </span>
-
-                        <span
-                          style={{
-                            color:
-                              test.status ===
-                              'Timeout'
-                                ? 'var(--warning)'
-                                : 'var(--muted)',
-                          }}
-                        >
-                          {test.status}
-                        </span>
-                      </div>
-                    )
-                  )
-                ) : (
-                  <div
-                    style={{
-                      color: 'var(--muted)',
-                      fontSize: 12,
-                      padding: '9px 0',
-                    }}
-                  >
-                    Execution test results are
-                    not available for this
-                    submission.
-                  </div>
-                )}
-              </div>
+              Code execution is not configured. No code was run and no automated test results are available.
             </div>
           </Section>
 
@@ -515,53 +380,17 @@ export default function SubmissionDetails() {
 
           <Section
             title="Code quality"
-            kicker="Static analysis"
+            kicker="Unavailable"
           >
             <div
               style={{
                 padding: 20,
-                display: 'grid',
-                gap: 13,
+                color: 'var(--muted)',
+                fontSize: 12,
+                lineHeight: 1.6,
               }}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent:
-                    'space-between',
-                }}
-              >
-                <span
-                  style={{
-                    color: 'var(--muted)',
-                    fontSize: 12,
-                  }}
-                >
-                  Quality score
-                </span>
-
-                <strong
-                  style={{
-                    color: 'var(--success)',
-                    font:
-                      '20px var(--app-font-mono)',
-                  }}
-                >
-                  {qualityData?.score || '—'}
-                </strong>
-              </div>
-
-              <p
-                style={{
-                  color: 'var(--muted)',
-                  fontSize: 12,
-                  lineHeight: 1.6,
-                  margin: 0,
-                }}
-              >
-                {qualityData?.feedback ||
-                  'Code quality analysis is not available for this submission.'}
-              </p>
+              Static code-quality analysis is not configured for this submission.
             </div>
           </Section>
 
@@ -572,7 +401,7 @@ export default function SubmissionDetails() {
               title="Faculty evaluation"
               kicker={
                 evaluation.status ===
-                'Published'
+                'published'
                   ? 'Published evaluation'
                   : 'Saved evaluation'
               }
@@ -610,7 +439,7 @@ export default function SubmissionDetails() {
                         'var(--success)',
                     }}
                   >
-                    {evaluation.score}/100
+                    {evaluation.score}/{sub.maxScore ?? '—'}
                   </strong>
                 </div>
 
@@ -645,10 +474,7 @@ export default function SubmissionDetails() {
                       'var(--muted)',
                   }}
                 >
-                  Automated insights:{' '}
-                  {evaluation.shareInsights
-                    ? 'Shared with student'
-                    : 'Not shared with student'}
+                  Status: {evaluation.status}
                 </div>
               </div>
             </Section>

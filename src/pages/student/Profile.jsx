@@ -1,225 +1,243 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
 import {
-  Mail, IdCard, Building2, GraduationCap, Trophy, Zap, Flame,
-  Code, Award, Edit3, Save, X, Link as LinkIcon, ExternalLink,
+  Building2,
+  Edit3,
+  ExternalLink,
+  GraduationCap,
+  IdCard,
+  Link as LinkIcon,
+  Mail,
+  Save,
+  X,
 } from 'lucide-react';
-import Modal from '../../components/common/Modal';
-import Button from '../../components/common/Button';
-import ProgressBar from '../../components/common/ProgressBar';
-import AchievementCard from '../../components/student/AchievementCard';
-import Loading from '../../components/common/Loading';
-import { studentService } from '../../services/studentService';
-import { useAuth } from '../../context/AuthContext';
+import Loading from '../../components/common/Loading.jsx';
+import Modal from '../../components/common/Modal.jsx';
+import { studentService } from '../../services/studentService.js';
+import { useAuth } from '../../context/AuthContext.jsx';
+
+const emptyForm = {
+  name: '',
+  email: '',
+  bio: '',
+  skills: '',
+  github: '',
+  linkedin: '',
+};
 
 export default function Profile() {
-  const { user, updateUser } = useAuth();
+  const { token, updateUser } = useAuth();
   const [profile, setProfile] = useState(null);
-  const [achievements, setAchievements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [editModal, setEditModal] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', email: '', skills: '' });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
-    const load = async () => {
-      const [p, a] = await Promise.all([
-        studentService.getProfile(),
-        studentService.getAchievements(),
-      ]);
-      setProfile(p);
-      setAchievements(a);
-      setEditForm({ name: p.name, email: p.email, skills: p.skills.join(', ') });
-      setLoading(false);
-    };
-    load();
-  }, []);
+    let cancelled = false;
+    studentService.getProfile(token)
+      .then((student) => {
+        if (!cancelled) setProfile(student);
+      })
+      .catch((loadError) => {
+        if (!cancelled) setError(loadError.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-  const handleSave = () => {
-    const updated = {
-      ...editForm,
-      skills: editForm.skills.split(',').map((s) => s.trim()).filter(Boolean),
+    return () => {
+      cancelled = true;
     };
-    setProfile((prev) => ({ ...prev, ...updated }));
-    updateUser(updated);
-    setEditModal(false);
+  }, [token]);
+
+  const openEditor = () => {
+    setForm({
+      name: profile.name || '',
+      email: profile.email || '',
+      bio: profile.bio || '',
+      skills: (profile.skills || []).join(', '),
+      github: profile.github || '',
+      linkedin: profile.linkedin || '',
+    });
+    setSaveError('');
+    setSaved(false);
+    setEditModal(true);
   };
 
-  if (loading || !profile) return <Loading type="cards" count={3} />;
+  const handleSave = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setSaveError('');
+    setSaved(false);
 
-  const stats = profile.stats || {};
-  const xpProgress = (profile.xp / profile.xpToNext) * 100;
+    try {
+      const updated = await studentService.updateProfile({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        bio: form.bio.trim(),
+        skills: form.skills.split(',').map((skill) => skill.trim()).filter(Boolean),
+        github: form.github.trim(),
+        linkedin: form.linkedin.trim(),
+      }, token);
+      setProfile(updated);
+      updateUser({
+        name: updated.name,
+        firstName: updated.name.split(/\s+/)[0],
+        lastName: updated.name.split(/\s+/).slice(1).join(' '),
+        email: updated.email,
+      });
+      setSaved(true);
+      setEditModal(false);
+    } catch (saveFailure) {
+      setSaveError(saveFailure.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  const infoItems = [
-    { icon: IdCard, label: 'Student ID', value: profile.id },
-    { icon: Mail, label: 'Email', value: profile.email },
-    { icon: Building2, label: 'Department', value: profile.department },
-    { icon: GraduationCap, label: 'Semester', value: `Semester ${profile.semester}` },
-  ];
+  if (loading) return <Loading type="cards" count={2} />;
 
-  const statCards = [
-    { label: 'Problems Solved', value: profile.problemsSolved, icon: Code, color: 'text-cera-highlight bg-cera-highlight/10' },
-    { label: 'Current Rank', value: `#${profile.rank}`, icon: Trophy, color: 'text-cera-secondary bg-cera-secondary/10' },
-    { label: 'Total XP', value: profile.xp, icon: Zap, color: 'text-cera-primary bg-cera-primary/10' },
-    { label: 'Coding Streak', value: `${profile.streak} days`, icon: Flame, color: 'text-cera-warning bg-cera-warning/10' },
-    { label: 'Acceptance Rate', value: `${stats.acceptanceRate || 85.7}%`, icon: Award, color: 'text-cera-success bg-cera-success/10' },
-    { label: 'Best Score', value: `${stats.bestScore || 100}%`, icon: Trophy, color: 'text-cera-success bg-cera-success/10' },
-  ];
+  if (error) {
+    return (
+      <div className="rounded-xl border border-cera-border bg-cera-card p-6 text-sm" style={{ color: 'var(--error)' }} role="alert">
+        Unable to load your student profile: {error}
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="rounded-xl border border-cera-border bg-cera-card p-6 text-sm text-cera-muted">
+        No student enrollment profile is available for this account.
+      </div>
+    );
+  }
+
+  const name = profile.name || 'Student';
+  const initials = name.trim().split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+  const details = [
+    { label: 'USN', value: profile.usn, icon: IdCard },
+    { label: 'Email', value: profile.email, icon: Mail },
+    { label: 'Department', value: profile.department, icon: Building2 },
+    { label: 'Year', value: profile.year ? `Year ${profile.year}` : null, icon: GraduationCap },
+  ].filter((item) => item.value);
 
   return (
     <div className="space-y-5">
-      {/* Profile Header */}
-      <div className="bg-cera-card border border-cera-border rounded-xl p-6">
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-cera-primary to-cera-secondary flex items-center justify-center text-3xl font-bold text-white shrink-0">
-              {profile.name.charAt(0)}
+      <section className="rounded-xl border border-cera-border bg-cera-card p-6">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 items-center gap-4">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cera-primary to-cera-secondary text-xl font-bold text-white">
+              {initials}
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-cera-text">{profile.name}</h1>
-              <p className="text-sm text-cera-muted mt-1">{profile.department}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-xs bg-cera-primary/10 text-cera-primary px-2.5 py-1 rounded-full font-medium">
-                  Level {profile.level}
-                </span>
-                <span className="text-xs bg-cera-secondary/10 text-cera-secondary px-2.5 py-1 rounded-full font-medium">
-                  {profile.xp} XP
-                </span>
-                <span className="text-xs bg-cera-highlight/10 text-cera-highlight px-2.5 py-1 rounded-full font-medium">
-                  Rank #{profile.rank}
-                </span>
-              </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-2xl font-bold text-cera-text">{name}</h1>
+              <p className="mt-1 text-sm text-cera-muted">{profile.department || 'Student account'}</p>
             </div>
           </div>
-          <Button variant="ghost" icon={Edit3} onClick={() => setEditModal(true)}>
-            Edit Profile
-          </Button>
+          <button type="button" className="btn btn-primary" onClick={openEditor}>
+            <Edit3 size={15} />
+            Edit profile
+          </button>
         </div>
+      </section>
 
-        {/* XP Bar */}
-        <div className="mt-5">
-          <div className="flex justify-between mb-1.5">
-            <span className="text-sm text-cera-muted">Level {profile.level} → Level {profile.level + 1}</span>
-            <span className="text-sm text-cera-text font-mono">{profile.xp} / {profile.xpToNext} XP</span>
-          </div>
-          <ProgressBar value={xpProgress} color="primary" height="h-3" />
-        </div>
+      {saved && <p className="text-sm text-cera-success" role="status">Profile changes saved.</p>}
 
-        {/* Bio */}
-        {profile.bio && (
-          <p className="text-sm text-cera-muted mt-4 leading-relaxed">{profile.bio}</p>
-        )}
-
-        {/* Links */}
-        <div className="flex items-center gap-4 mt-4">
-          {profile.github && (
-            <a href={`https://${profile.github}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-cera-muted hover:text-cera-text transition-colors">
-              <ExternalLink size={16} /> {profile.github}
-            </a>
-          )}
-          {profile.linkedin && (
-            <a href={`https://${profile.linkedin}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-cera-muted hover:text-cera-text transition-colors">
-              <LinkIcon size={16} /> {profile.linkedin}
-            </a>
-          )}
-        </div>
-      </div>
-
-      {/* Info Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {infoItems.map((item, i) => {
-          const Icon = item.icon;
-          return (
-            <div key={i} className="bg-cera-card border border-cera-border rounded-xl p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-cera-elevated flex items-center justify-center shrink-0">
-                <Icon size={18} className="text-cera-muted" />
-              </div>
+      <section className="rounded-xl border border-cera-border bg-cera-card p-5">
+        <h2 className="mb-4 font-semibold text-cera-text">Enrollment details</h2>
+        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {details.map(({ label, value, icon: Icon }) => (
+            <div key={label} className="flex min-w-0 items-center gap-3 rounded-lg bg-cera-elevated p-4">
+              <Icon size={18} className="shrink-0 text-cera-muted" />
               <div className="min-w-0">
-                <p className="text-xs text-cera-muted">{item.label}</p>
-                <p className="text-sm font-medium text-cera-text truncate">{item.value}</p>
+                <dt className="text-xs text-cera-muted">{label}</dt>
+                <dd className="truncate text-sm font-medium text-cera-text">{value}</dd>
               </div>
             </div>
-          );
-        })}
-      </div>
-
-      {/* Stats Grid */}
-      <div>
-        <h3 className="font-semibold text-cera-text mb-3">Statistics</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {statCards.map((stat, i) => {
-            const Icon = stat.icon;
-            return (
-              <div key={i} className="bg-cera-card border border-cera-border rounded-xl p-4">
-                <div className={`w-9 h-9 rounded-lg ${stat.color} flex items-center justify-center mb-3`}>
-                  <Icon size={18} />
-                </div>
-                <p className="text-xl font-bold text-cera-text">{stat.value}</p>
-                <p className="text-xs text-cera-muted mt-1">{stat.label}</p>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Skills */}
-      <div className="bg-cera-card border border-cera-border rounded-xl p-5">
-        <h3 className="font-semibold text-cera-text mb-3">Skills</h3>
-        <div className="flex flex-wrap gap-2">
-          {profile.skills.map((skill, i) => (
-            <span key={i} className="text-sm bg-cera-elevated text-cera-text px-3 py-1.5 rounded-lg border border-cera-border">
-              {skill}
-            </span>
           ))}
-        </div>
-      </div>
+        </dl>
+      </section>
 
-      {/* Achievements */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-cera-text">Achievements</h3>
-          <span className="text-sm text-cera-muted">{achievements.filter((a) => a.unlocked).length}/{achievements.length} unlocked</span>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {achievements.map((a) => <AchievementCard key={a.id} achievement={a} />)}
-        </div>
-      </div>
+      <section className="rounded-xl border border-cera-border bg-cera-card p-5">
+        <h2 className="mb-3 font-semibold text-cera-text">About me</h2>
+        <p className="text-sm leading-relaxed text-cera-muted">
+          {profile.bio || 'Add a short introduction about yourself.'}
+        </p>
+      </section>
 
-      {/* Edit Modal */}
-      <Modal isOpen={editModal} onClose={() => setEditModal(false)} title="Edit Profile" size="md">
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm text-cera-muted mb-1.5 block">Name</label>
-            <input
-              type="text"
-              value={editForm.name}
-              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-              className="input-base w-full"
-            />
+      <section className="rounded-xl border border-cera-border bg-cera-card p-5">
+        <h2 className="mb-3 font-semibold text-cera-text">Skills</h2>
+        {profile.skills?.length ? (
+          <div className="flex flex-wrap gap-2">
+            {profile.skills.map((skill) => (
+              <span key={skill} className="rounded-lg border border-cera-border bg-cera-elevated px-3 py-1.5 text-sm text-cera-text">
+                {skill}
+              </span>
+            ))}
           </div>
-          <div>
-            <label className="text-sm text-cera-muted mb-1.5 block">Email</label>
-            <input
-              type="email"
-              value={editForm.email}
-              onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-              className="input-base w-full"
-            />
+        ) : (
+          <p className="text-sm text-cera-muted">Add your programming languages and skills to your profile.</p>
+        )}
+      </section>
+
+      {(profile.github || profile.linkedin) && (
+        <section className="rounded-xl border border-cera-border bg-cera-card p-5">
+          <h2 className="mb-3 font-semibold text-cera-text">Links</h2>
+          <div className="flex flex-wrap gap-4">
+            {profile.github && (
+              <a href={`https://${profile.github}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-cera-muted hover:text-cera-text">
+                <ExternalLink size={16} /> {profile.github}
+              </a>
+            )}
+            {profile.linkedin && (
+              <a href={`https://${profile.linkedin}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-cera-muted hover:text-cera-text">
+                <LinkIcon size={16} /> {profile.linkedin}
+              </a>
+            )}
           </div>
-          <div>
-            <label className="text-sm text-cera-muted mb-1.5 block">Skills (comma-separated)</label>
-            <input
-              type="text"
-              value={editForm.skills}
-              onChange={(e) => setEditForm({ ...editForm, skills: e.target.value })}
-              className="input-base w-full"
-              placeholder="JavaScript, Python, React..."
-            />
+        </section>
+      )}
+
+      <Modal isOpen={editModal} onClose={() => setEditModal(false)} title="Edit student profile" size="lg">
+        <form onSubmit={handleSave} className="space-y-4">
+          <label className="block">
+            <span className="label">Name</span>
+            <input className="input" value={form.name} maxLength={120} required onChange={(event) => setForm({ ...form, name: event.target.value })} />
+          </label>
+          <label className="block">
+            <span className="label">Email</span>
+            <input className="input" type="email" value={form.email} maxLength={254} required onChange={(event) => setForm({ ...form, email: event.target.value })} />
+          </label>
+          <label className="block">
+            <span className="label">About me</span>
+            <textarea className="textarea" value={form.bio} maxLength={1000} rows={4} placeholder="Write a short introduction" onChange={(event) => setForm({ ...form, bio: event.target.value })} />
+          </label>
+          <label className="block">
+            <span className="label">Skills (comma-separated)</span>
+            <input className="input" value={form.skills} maxLength={1800} placeholder="JavaScript, Python, C++" onChange={(event) => setForm({ ...form, skills: event.target.value })} />
+          </label>
+          <label className="block">
+            <span className="label">GitHub profile</span>
+            <input className="input" value={form.github} maxLength={200} placeholder="github.com/username" onChange={(event) => setForm({ ...form, github: event.target.value })} />
+          </label>
+          <label className="block">
+            <span className="label">LinkedIn profile</span>
+            <input className="input" value={form.linkedin} maxLength={200} placeholder="linkedin.com/in/username" onChange={(event) => setForm({ ...form, linkedin: event.target.value })} />
+          </label>
+          {saveError && <p className="text-sm" style={{ color: 'var(--error)' }} role="alert">{saveError}</p>}
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" className="btn btn-ghost" onClick={() => setEditModal(false)}>
+              <X size={14} /> Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              <Save size={14} /> {saving ? 'Saving...' : 'Save changes'}
+            </button>
           </div>
-          <div className="flex gap-3 pt-2">
-            <Button variant="ghost" className="flex-1" icon={X} onClick={() => setEditModal(false)}>Cancel</Button>
-            <Button className="flex-1" icon={Save} onClick={handleSave}>Save Changes</Button>
-          </div>
-        </div>
+        </form>
       </Modal>
     </div>
   );

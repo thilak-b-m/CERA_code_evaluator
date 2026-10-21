@@ -23,7 +23,7 @@ function timeAgo(timestamp) {
   return diffM > 0 ? `${diffM}m ago` : 'Just now';
 }
 
-export default function NotificationCard({ notification, onMarkRead, onDelete }) {
+export default function NotificationCard({ notification, onMarkRead, onDelete, onOpen }) {
   const cfg = typeConfig[notification.type] || typeConfig.System;
   const Icon = cfg.icon;
 
@@ -52,6 +52,14 @@ export default function NotificationCard({ notification, onMarkRead, onDelete })
           <div className="flex items-center justify-between mt-3">
             <span className="text-xs text-cera-muted">{timeAgo(notification.timestamp)}</span>
             <div className="flex items-center gap-2">
+              {notification.route && (
+                <button
+                  onClick={() => onOpen(notification)}
+                  className="text-xs text-cera-highlight hover:text-cera-primary transition-colors"
+                >
+                  Open
+                </button>
+              )}
               {!notification.read && (
                 <button
                   onClick={() => onMarkRead(notification.id)}

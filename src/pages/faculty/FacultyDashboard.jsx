@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'wouter';
+import { Link } from 'react-router-dom';
 
 import {
   Activity,
@@ -8,7 +8,6 @@ import {
   ClipboardCheck,
   Download,
   Plus,
-  ShieldCheck,
   Target,
 } from 'lucide-react';
 
@@ -17,21 +16,38 @@ import Card from '../../components/common/Card.jsx';
 import KPICard from '../../components/faculty/KPICard.jsx';
 import AnalyticsChart from '../../components/faculty/AnalyticsChart.jsx';
 import ActivityTimeline from '../../components/faculty/ActivityTimeline.jsx';
-import StatusBadge from '../../components/common/StatusBadge.jsx';
-import Avatar from '../../components/faculty/Avatar.jsx';
 
-import { useApp } from '../../context/AppContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 import { dashboardService } from '../../services/dashboardService.js';
 
 export default function FacultyDashboard() {
-  const { notify, profile } = useApp();
+  const { user, token } = useAuth();
+  const firstName = user?.firstName || user?.name?.trim().split(/\s+/)[0] || 'there';
 
-  const dashboardData =
-    dashboardService.getOverview();
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loadError, setLoadError] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const [currentDate, setCurrentDate] =
     useState(() => new Date());
+
+  useEffect(() => {
+    let cancelled = false;
+    dashboardService.getOverview(token)
+      .then((data) => {
+        if (!cancelled) setDashboardData(data);
+      })
+      .catch((error) => {
+        if (!cancelled) setLoadError(error.message || 'Unable to load the faculty dashboard.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -53,15 +69,33 @@ export default function FacultyDashboard() {
     })
     .toUpperCase()}`;
 
+  if (loading) {
+    return (
+      <Page title={`Good morning, ${firstName}.`} subtitle="Loading your teaching workspace...">
+        <Card title="Dashboard"><div style={{ padding: 20 }}>Loading course activity...</div></Card>
+      </Page>
+    );
+  }
+
+  if (loadError || !dashboardData) {
+    return (
+      <Page title={`Good morning, ${firstName}.`} subtitle="Your teaching workspace is ready.">
+        <div role="alert" className="panel" style={{ padding: 20 }}>
+          {loadError || 'Dashboard data is unavailable.'}
+        </div>
+      </Page>
+    );
+  }
+
   return (
     <Page
       eyebrow={dateLabel}
-      title={`Good morning, ${profile.firstName}.`}
+      title={`Good morning, ${firstName}.`}
       subtitle="Your teaching workspace is ready. Here’s the pulse across your courses."
       actions={
         <>
           <Link
-            href="/live-lab"
+            to="/live-lab"
             className="btn btn-ghost"
           >
             <Activity size={15} />
@@ -69,7 +103,7 @@ export default function FacultyDashboard() {
           </Link>
 
           <Link
-            href="/assignments/create"
+            to="/assignments/create"
             className="btn btn-primary"
           >
             <Plus size={15} />
@@ -111,8 +145,8 @@ export default function FacultyDashboard() {
 
         <KPICard
           icon={Target}
-          label="Average pass rate"
-          value={`${dashboardData.metrics.averagePassRate.value}%`}
+          label="Average published score"
+          value={dashboardData.metrics.averagePassRate.value}
           trend={
             dashboardData.metrics.averagePassRate.trend
           }
@@ -152,7 +186,7 @@ export default function FacultyDashboard() {
           kicker="Last 14 days · all courses"
           action={
             <Link
-              href="/analytics"
+              to="/analytics"
               className="btn btn-ghost"
             >
               View analytics
@@ -182,15 +216,6 @@ export default function FacultyDashboard() {
                   {dashboardData.submissions.total.toLocaleString()}
                 </span>
 
-                <span
-                  style={{
-                    color: 'var(--success)',
-                    fontSize: 11,
-                    marginLeft: 9,
-                  }}
-                >
-                  {dashboardData.submissions.change}
-                </span>
               </div>
 
               <span
@@ -223,7 +248,11 @@ export default function FacultyDashboard() {
               padding: '21px 20px',
             }}
           >
-            {dashboardData.languageUsage.map(
+            {dashboardData.languageUsage.length === 0 ? (
+              <div style={{ color: 'var(--muted)', fontSize: 12 }}>
+                No submissions are available for language statistics.
+              </div>
+            ) : dashboardData.languageUsage.map(
               (language) => (
                 <div
                   key={language.name}
@@ -287,10 +316,10 @@ export default function FacultyDashboard() {
       >
         <Card
           title="Live right now"
-          kicker="Real-time activity across your labs"
+          kicker="Real-time feed"
           action={
             <Link
-              href="/live-lab"
+              to="/live-lab"
               className="btn btn-ghost"
             >
               See all
@@ -298,78 +327,8 @@ export default function FacultyDashboard() {
             </Link>
           }
         >
-          <div>
-            {dashboardData.liveStudents
-              .slice(0, 4)
-              .map((student) => (
-                <div
-                  className="activity-item"
-                  key={student.id}
-                >
-                  <Avatar>
-                    {student.initials}
-                  </Avatar>
-
-                  <div
-                    style={{
-                      flex: 1,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent:
-                          'space-between',
-                        gap: 8,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {student.name}
-                      </span>
-
-                      <span
-                        style={{
-                          color: 'var(--muted)',
-                          font:
-                            '10px var(--app-font-mono)',
-                        }}
-                      >
-                        {student.time}
-                      </span>
-                    </div>
-
-                    <div
-                      style={{
-                        color: 'var(--muted)',
-                        fontSize: 11,
-                        marginTop: 4,
-                      }}
-                    >
-                      {student.task} ·{' '}
-                      {student.lang}
-                    </div>
-                  </div>
-
-                  <StatusBadge
-                    tone={
-                      student.status ===
-                      'Needs help'
-                        ? 'warning'
-                        : student.status ===
-                          'Passed'
-                        ? 'success'
-                        : 'live'
-                    }
-                  >
-                    {student.status}
-                  </StatusBadge>
-                </div>
-              ))}
+          <div style={{ padding: 20, color: 'var(--muted)', fontSize: 12, lineHeight: 1.6 }}>
+            Live lab activity is not connected yet. No simulated live sessions are shown.
           </div>
         </Card>
 
@@ -385,7 +344,7 @@ export default function FacultyDashboard() {
             }}
           >
             <Link
-              href={
+              to={
                 dashboardData.quickActions
                   .evaluationQueue.href
               }
@@ -422,44 +381,7 @@ export default function FacultyDashboard() {
             </Link>
 
             <Link
-              href={
-                dashboardData.quickActions
-                  .integrityRisks.href
-              }
-              className="quick-action"
-            >
-              <ShieldCheck
-                size={18}
-                color="var(--accent)"
-              />
-
-              <div>
-                <p>
-                  {
-                    dashboardData.quickActions
-                      .integrityRisks.label
-                  }
-                </p>
-
-                <small>
-                  {
-                    dashboardData.quickActions
-                      .integrityRisks.detail
-                  }
-                </small>
-              </div>
-
-              <ArrowRight
-                size={14}
-                style={{
-                  marginLeft: 'auto',
-                  color: 'var(--muted)',
-                }}
-              />
-            </Link>
-
-            <Link
-              href={
+              to={
                 dashboardData.quickActions
                   .courseReport.href
               }
@@ -509,19 +431,9 @@ export default function FacultyDashboard() {
       >
         <Card
           title="Recent activity"
-          kicker="A clear trail of what changed today"
+          kicker="Recent submissions"
           action={
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() =>
-                notify(
-                  'Activity marked as reviewed'
-                )
-              }
-            >
-              Mark reviewed
-            </button>
+            <Link to="/submissions" className="btn btn-ghost">View submissions</Link>
           }
         >
           <ActivityTimeline

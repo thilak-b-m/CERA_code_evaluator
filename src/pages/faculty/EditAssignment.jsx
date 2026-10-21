@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useParams } from 'wouter';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Check,
@@ -8,6 +8,8 @@ import {
 
 import Page from '../../components/common/Page.jsx';
 import { useApp } from '../../context/AppContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+import SecureLabSettings from '../../components/faculty/SecureLabSettings.jsx';
 
 import {
   getAssignmentById,
@@ -42,8 +44,9 @@ function Section({
 
 export default function EditAssignment() {
   const { id } = useParams();
-  const [, navigate] = useLocation();
+  const navigate = useNavigate();
   const { notify } = useApp();
+  const { token } = useAuth();
 
   const [assignment, setAssignment] =
     useState(null);
@@ -55,100 +58,101 @@ export default function EditAssignment() {
     useState('Intermediate');
   const [description, setDescription] =
     useState('');
+  const [evaluationCriteria, setEvaluationCriteria] =
+    useState('');
   const [timeLimit, setTimeLimit] =
     useState('');
   const [visibility, setVisibility] =
     useState('published');
   const [points, setPoints] =
     useState('');
+  const [targetYears, setTargetYears] = useState([1, 2, 3, 4]);
+  const [secureLab, setSecureLab] = useState({
+    enabled: false,
+    requireFullscreen: true,
+    recordTabSwitches: true,
+    recordFullscreenExits: true,
+    maxFullscreenExits: 2,
+  });
 
   /* =========================
      LOAD ASSIGNMENT
   ========================= */
 
   useEffect(() => {
-    const current =
-      getAssignmentById(id);
-
-    if (!current) {
-      notify('Assignment not found');
-      navigate('/assignments');
-      return;
-    }
-
-    setAssignment(current);
-
-    setTitle(current.title || '');
-    setCourse(current.course || '');
-    setDue(current.due || '');
-
-    setDifficulty(
-      current.difficulty ||
-        'Intermediate'
-    );
-
-    setDescription(
-      current.description || ''
-    );
-
-    setTimeLimit(
-      current.timeLimit || ''
-    );
-
-    setVisibility(
-      current.visibility || 'published'
-    );
-
-    setPoints(
-      current.points || ''
-    );
-  }, [id]);
+    let cancelled = false;
+    getAssignmentById(id, token)
+      .then((current) => {
+        if (cancelled) return;
+        setAssignment(current);
+        setTitle(current.title || '');
+        setCourse(current.course || '');
+        setDue(current.due ? current.due.slice(0, 10) : '');
+        setDifficulty(current.difficulty || 'Intermediate');
+        setDescription(current.description || '');
+        setEvaluationCriteria(current.evaluationCriteria || '');
+        setTimeLimit(current.timeLimit || '');
+        setVisibility(current.status || current.visibility || 'published');
+        setPoints(String(current.points ?? ''));
+        setTargetYears(current.targetYears || [1, 2, 3, 4]);
+        setSecureLab(current.secureLab || {
+          enabled: false,
+          requireFullscreen: true,
+          recordTabSwitches: true,
+          recordFullscreenExits: true,
+          maxFullscreenExits: 2,
+        });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        notify(error.message || 'Assignment not found');
+        navigate('/assignments');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, token, navigate]);
 
   /* =========================
      SAVE
   ========================= */
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim()) {
-      notify(
-        'Assignment title cannot be empty'
-      );
+      notify('Assignment title cannot be empty');
       return;
     }
 
     if (!course.trim()) {
-      notify(
-        'Course cannot be empty'
-      );
+      notify('Course cannot be empty');
       return;
     }
 
     if (!due.trim()) {
-      notify(
-        'Due date cannot be empty'
-      );
+      notify('Due date cannot be empty');
       return;
     }
 
-    const updated =
-      updateAssignment(id, {
+    try {
+      await updateAssignment(id, {
         title: title.trim(),
         course: course.trim(),
         due: due.trim(),
         difficulty,
         description:
           description.trim(),
+        evaluationCriteria:
+          evaluationCriteria.trim(),
         timeLimit:
-          timeLimit.trim(),
+          timeLimit === '' ? 0 : Number(timeLimit),
         visibility,
         points:
-          points.trim(),
-      });
-
-    if (!updated) {
-      notify(
-        'Unable to update assignment'
-      );
+          Number(points),
+        targetYears,
+        secureLab,
+      }, token);
+    } catch (error) {
+      notify(error.message || 'Unable to update assignment');
       return;
     }
 
@@ -194,7 +198,7 @@ export default function EditAssignment() {
 
   return (
     <Page
-      eyebrow={`ASSIGNMENTS / ${assignment.id}`}
+      eyebrow="ASSIGNMENTS"
       title="Edit assignment"
       subtitle={`${assignment.title} · ${assignment.course}`}
       actions={
@@ -226,7 +230,7 @@ export default function EditAssignment() {
       >
         <Section
           title="Assignment details"
-          kicker={`Editing ${assignment.id}`}
+          kicker="Update the assignment details and rubric"
         >
           <div
             style={{
@@ -271,6 +275,11 @@ export default function EditAssignment() {
               />
             </label>
 
+            <fieldset style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 14 }}>
+              <legend className="label">Target academic years</legend>
+              <div className="flex flex-wrap gap-4">{[1, 2, 3, 4].map((year) => <label key={year} style={{ display: 'flex', gap: 7, alignItems: 'center' }}><input type="checkbox" checked={targetYears.includes(year)} onChange={(event) => setTargetYears((current) => event.target.checked ? [...current, year].sort() : current.filter((item) => item !== year))} />Year {year}</label>)}</div>
+            </fieldset>
+
             {/* DUE */}
 
             <label>
@@ -294,18 +303,22 @@ export default function EditAssignment() {
 
             <label>
               <span className="label">
-                Time limit
+                Time limit (minutes, 0 = none)
               </span>
 
               <input
                 className="input"
+                type="number"
+                min="0"
+                max="600"
+                step="1"
                 value={timeLimit}
                 onChange={(e) =>
                   setTimeLimit(
                     e.target.value
                   )
                 }
-                placeholder="e.g. 2 seconds"
+                placeholder="e.g. 30"
               />
             </label>
 
@@ -318,6 +331,10 @@ export default function EditAssignment() {
 
               <input
                 className="input"
+                type="number"
+                min="1"
+                max="10000"
+                step="1"
                 value={points}
                 onChange={(e) =>
                   setPoints(
@@ -327,6 +344,7 @@ export default function EditAssignment() {
                 placeholder="Enter points"
               />
             </label>
+
 
             {/* VISIBILITY */}
 
@@ -433,6 +451,27 @@ export default function EditAssignment() {
                 }}
               />
             </label>
+
+            <label>
+              <span className="label">
+                Evaluation conditions / complexity expectations
+              </span>
+
+              <textarea
+                className="textarea"
+                value={evaluationCriteria}
+                onChange={(e) =>
+                  setEvaluationCriteria(e.target.value)
+                }
+                placeholder="Optional: describe required conditions, edge cases, time/space complexity, or grading priorities."
+                style={{ minHeight: 120 }}
+              />
+              <span style={{ color: 'var(--muted)', fontSize: 12 }}>
+                Used as grading guidance for faculty and local AI evaluation.
+              </span>
+            </label>
+
+            <SecureLabSettings value={secureLab} onChange={setSecureLab} />
 
             {/* BUTTONS */}
 

@@ -6,9 +6,17 @@ const AuthContext = createContext(null);
 function getStoredSession() {
   try {
     const stored = localStorage.getItem('cera-session') || sessionStorage.getItem('cera-session');
-    return stored ? JSON.parse(stored) : { user: null, token: null };
+    const session = stored ? JSON.parse(stored) : null;
+    if (!session?.user || typeof session.token !== 'string') {
+      return { user: null, token: null };
+    }
+
+    const payload = JSON.parse(atob(session.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (!Number.isInteger(payload.exp) || payload.exp <= Date.now() / 1000) {
+      return { user: null, token: null };
+    }
+    return session;
   } catch (error) {
-    console.error('Error reading stored auth session:', error);
     return { user: null, token: null };
   }
 }
@@ -36,13 +44,10 @@ export function AuthProvider({ children }) {
   };
 
   const login = async (credentials, remember = true) => {
-    const result = await authService.signIn(credentials);
+    const result = await authService.signIn(credentials, remember);
     signIn(result.user, result.token, remember);
     return result;
   };
-
-  const forgotPassword = async (email) => authService.forgotPassword(email);
-  const resetPassword = async (token, password) => authService.resetPassword(token, password);
 
   const signOut = () => {
     setSession({ user: null, token: null });
@@ -62,14 +67,17 @@ export function AuthProvider({ children }) {
   };
 
   const updateUser = (updatedData) => {
-    setSession((previous) => ({
-      ...previous,
-      user: { ...(previous.user || {}), ...updatedData },
-    }));
+    const nextSession = {
+      user: { ...(user || {}), ...updatedData },
+      token,
+    };
+    setSession(nextSession);
+    const storage = localStorage.getItem('cera-session') ? localStorage : sessionStorage;
+    storage.setItem('cera-session', JSON.stringify(nextSession));
   };
 
   const value = useMemo(
-    () => ({ user, token, isAuthenticated, signIn, signOut, login, forgotPassword, resetPassword, logout, updateUser }),
+    () => ({ user, token, isAuthenticated, signIn, signOut, login, logout, updateUser }),
     [user, token, isAuthenticated]
   );
 

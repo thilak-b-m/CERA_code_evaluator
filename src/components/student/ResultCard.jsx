@@ -1,20 +1,10 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Trophy, TrendingUp } from 'lucide-react';
 import ProgressBar from '../common/ProgressBar';
+import { formatDate } from '../../utils/formatDate.js';
 
 export default function ResultCard({ result }) {
   const navigate = useNavigate();
-
-  const gradeColor = {
-    'A+': 'text-cera-success',
-    'A': 'text-cera-success',
-    'B+': 'text-cera-primary',
-    'B': 'text-cera-primary',
-    'C+': 'text-cera-warning',
-    'C': 'text-cera-warning',
-    'F': 'text-cera-error',
-  };
 
   return (
     <motion.div
@@ -29,8 +19,8 @@ export default function ResultCard({ result }) {
           <h3 className="font-semibold text-cera-text">{result.assignment}</h3>
           <p className="text-sm text-cera-muted mt-0.5">{result.subject}</p>
         </div>
-        <span className={`text-2xl font-bold ${gradeColor[result.grade] || 'text-cera-text'}`}>
-          {result.grade}
+        <span className="text-2xl font-bold text-cera-success">
+          {result.percentage}%
         </span>
       </div>
 
@@ -46,15 +36,8 @@ export default function ResultCard({ result }) {
       </div>
 
       <div className="flex items-center justify-between text-xs text-cera-muted">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1">
-            <Trophy size={12} /> Rank #{result.rank}
-          </span>
-          <span>{result.testCasesPassed}/{result.totalTestCases} tests</span>
-        </div>
-        <span className="flex items-center gap-1 text-cera-highlight">
-          <TrendingUp size={12} /> {result.percentage}%
-        </span>
+        <span>Submitted {formatDate(result.submittedAt)}</span>
+        <span className="text-cera-highlight">Published</span>
       </div>
     </motion.div>
   );

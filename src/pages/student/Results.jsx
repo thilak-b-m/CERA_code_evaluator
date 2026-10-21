@@ -1,55 +1,67 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trophy, Target, CheckCircle, Code, Award, TrendingUp } from 'lucide-react';
+import { Target, CheckCircle, Award, Filter, ArrowUpDown } from 'lucide-react';
 import ResultCard from '../../components/student/ResultCard';
 import Dropdown from '../../components/common/Dropdown';
 import Loading from '../../components/common/Loading';
+import ErrorState from '../../components/common/ErrorState';
+import EmptyState from '../../components/common/EmptyState';
 import { ScoreLineChart } from '../../components/student/ProgressChart';
 import { studentService } from '../../services/studentService';
 import { useAuth } from '../../context/AuthContext';
 
-const subjectOptions = [
-  { value: 'all', label: 'All Subjects' },
-  { value: 'Data Structures', label: 'Data Structures' },
-  { value: 'Algorithms', label: 'Algorithms' },
-  { value: 'Databases', label: 'Databases' },
-];
-
 const sortOptions = [
-  { value: 'date-desc', label: 'Newest First' },
-  { value: 'date-asc', label: 'Oldest First' },
-  { value: 'score-desc', label: 'Highest Score' },
-  { value: 'percentage-desc', label: 'Best Percentage' },
+  { value: 'date-desc', label: 'Newest first' },
+  { value: 'date-asc', label: 'Oldest first' },
+  { value: 'percentage-desc', label: 'Highest score' },
 ];
 
 export default function Results() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { token } = useAuth();
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date-desc');
   const [scoreData, setScoreData] = useState([]);
 
-  useEffect(() => {
-    const load = async () => {
-      const [res, sp] = await Promise.all([
-        studentService.getResults(),
-        studentService.getScoreProgression(),
-      ]);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await studentService.getResults(token);
+      const sp = [...res]
+        .sort((left, right) => new Date(left.submittedAt) - new Date(right.submittedAt))
+        .map((result) => ({ assignment: result.assignment, score: result.percentage }));
       setResults(res);
       setScoreData(sp);
+    } catch {
+      setError(true);
+    } finally {
       setLoading(false);
-    };
+    }
+  }, [token]);
+
+  useEffect(() => {
     load();
-  }, []);
+  }, [load]);
+
+  const subjectOptions = useMemo(
+    () => [
+      { value: 'all', label: 'All courses' },
+      ...Array.from(new Set(results.map((result) => result.subject)))
+        .filter(Boolean)
+        .map((subject) => ({ value: subject, label: subject })),
+    ],
+    [results],
+  );
 
   const filtered = useMemo(() => {
     let result = results.filter((r) => subjectFilter === 'all' || r.subject === subjectFilter);
     result = [...result].sort((a, b) => {
       switch (sortBy) {
         case 'date-asc': return new Date(a.submittedAt) - new Date(b.submittedAt);
-        case 'score-desc': return b.score - a.score;
         case 'percentage-desc': return b.percentage - a.percentage;
         case 'date-desc':
         default: return new Date(b.submittedAt) - new Date(a.submittedAt);
@@ -59,23 +71,25 @@ export default function Results() {
   }, [results, subjectFilter, sortBy]);
 
   if (loading) return <Loading type="cards" count={4} />;
+  if (error) return <ErrorState message="Could not load published results." onRetry={load} />;
 
-  const avgScore = results.length > 0 ? (results.reduce((sum, r) => sum + r.percentage, 0) / results.length).toFixed(1) : 0;
-  const totalTests = results.reduce((sum, r) => sum + r.totalTestCases, 0);
-  const passedTests = results.reduce((sum, r) => sum + r.testCasesPassed, 0);
-  const bestScore = results.length > 0 ? Math.max(...results.map((r) => r.percentage)) : 0;
+  const avgScore = results.length > 0
+    ? `${(results.reduce((sum, result) => sum + result.percentage, 0) / results.length).toFixed(1)}%`
+    : '—';
+  const bestScore = results.length > 0
+    ? `${Math.max(...results.map((result) => result.percentage))}%`
+    : '—';
 
   const summaryStats = [
-    { label: 'Average Score', value: `${avgScore}%`, icon: Target, color: 'text-cera-primary bg-cera-primary/10' },
-    { label: 'Assignments Completed', value: results.length, icon: CheckCircle, color: 'text-cera-success bg-cera-success/10' },
-    { label: 'Tests Passed', value: `${passedTests}/${totalTests}`, icon: CheckCircle, color: 'text-cera-highlight bg-cera-highlight/10' },
-    { label: 'Current Rank', value: `#${user?.rank || 4}`, icon: Trophy, color: 'text-cera-secondary bg-cera-secondary/10' },
+    { label: 'Average Score', value: avgScore, icon: Target, color: 'text-cera-primary bg-cera-primary/10' },
+    { label: 'Published Results', value: results.length, icon: CheckCircle, color: 'text-cera-success bg-cera-success/10' },
+    { label: 'Best Score', value: bestScore, icon: Award, color: 'text-cera-highlight bg-cera-highlight/10' },
   ];
 
   return (
     <div className="space-y-5">
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {summaryStats.map((stat, i) => {
           const Icon = stat.icon;
           return (
@@ -97,15 +111,42 @@ export default function Results() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <Dropdown value={subjectFilter} onChange={setSubjectFilter} options={subjectOptions} className="flex-1" />
-        <Dropdown value={sortBy} onChange={setSortBy} options={sortOptions} className="flex-1" />
+      <div className="flex gap-3">
+        <Dropdown
+          value={subjectFilter}
+          onChange={setSubjectFilter}
+          options={subjectOptions}
+          icon={Filter}
+          className="flex-1 sm:w-44 sm:flex-none"
+        />
+        <Dropdown
+          value={sortBy}
+          onChange={setSortBy}
+          options={sortOptions}
+          icon={ArrowUpDown}
+          className="flex-1 sm:w-44 sm:flex-none"
+        />
+      </div>
+
+      {/* Results count */}
+      <div className="flex items-center gap-2 text-sm text-cera-muted">
+        <Filter size={14} />
+        <span>{filtered.length} result{filtered.length !== 1 ? 's' : ''} found</span>
       </div>
 
       {/* Results Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((r) => <ResultCard key={r.id} result={r} />)}
-      </div>
+      {filtered.length === 0 ? (
+        <EmptyState
+          title={results.length === 0 ? 'No published results yet' : 'No results match this course'}
+          description={results.length === 0
+            ? 'Published faculty evaluations will appear here.'
+            : 'Choose another course filter to see your published results.'}
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((result) => <ResultCard key={result.id} result={result} />)}
+        </div>
+      )}
     </div>
   );
 }
