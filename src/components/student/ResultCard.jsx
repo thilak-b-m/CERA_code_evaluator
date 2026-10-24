@@ -12,7 +12,16 @@ export default function ResultCard({ result }) {
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -2 }}
       onClick={() => navigate(`/student/results/${result.id}`)}
-      className="bg-cera-card border border-cera-border rounded-xl p-5 cursor-pointer hover:border-cera-muted/30 transition-colors"
+      role="link"
+      tabIndex={0}
+      aria-label={`Open result for ${result.assignment}`}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          navigate(`/student/results/${result.id}`);
+        }
+      }}
+      className="interactive-card bg-cera-card rounded-xl p-5 cursor-pointer"
     >
       <div className="flex items-start justify-between mb-3">
         <div>

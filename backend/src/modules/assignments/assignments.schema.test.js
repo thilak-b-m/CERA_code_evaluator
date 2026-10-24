@@ -68,7 +68,15 @@ test('Secure Lab settings are normalized and validated', () => {
     warningThreshold: 1,
     maxViolations: 3,
     maxFullscreenExits: 0,
+    fullscreenExitTimeoutSeconds: 15,
   });
+  assert.equal(
+    parseAssignmentInput({
+      ...assignmentWithDefaults(),
+      secureLab: { enabled: false, fullscreenExitTimeoutSeconds: 45 },
+    }).secureLab.fullscreenExitTimeoutSeconds,
+    15,
+  );
   assert.deepEqual(
     parseAssignmentInput({
       ...assignmentWithDefaults(),
@@ -82,6 +90,7 @@ test('Secure Lab settings are normalized and validated', () => {
       warningThreshold: 2,
       maxViolations: 5,
       maxFullscreenExits: 3,
+      fullscreenExitTimeoutSeconds: 15,
     },
   );
   assert.throws(
@@ -102,6 +111,20 @@ test('Secure Lab settings are normalized and validated', () => {
     () => parseAssignmentInput({
       ...assignmentWithDefaults(),
       secureLab: { maxFullscreenExits: 101 },
+    }),
+    AssignmentValidationError,
+  );
+  assert.throws(
+    () => parseAssignmentInput({
+      ...assignmentWithDefaults(),
+      secureLab: { fullscreenExitTimeoutSeconds: 0 },
+    }),
+    AssignmentValidationError,
+  );
+  assert.throws(
+    () => parseAssignmentInput({
+      ...assignmentWithDefaults(),
+      secureLab: { fullscreenExitTimeoutSeconds: 301 },
     }),
     AssignmentValidationError,
   );

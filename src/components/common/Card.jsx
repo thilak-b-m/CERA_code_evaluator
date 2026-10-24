@@ -11,12 +11,13 @@ export default function Card({
   ...props
 }) {
   const hasHeader = title || kicker || action;
+  const isInteractive = hover || Boolean(onClick);
 
   return (
     <motion.div
-      whileHover={hover ? { y: -2, transition: { duration: 0.2 } } : undefined}
+      whileHover={isInteractive ? { y: -2, transition: { duration: 0.18 } } : undefined}
       onClick={onClick}
-      className={`bg-cera-card border border-cera-border rounded-xl ${className}`}
+      className={`panel bg-cera-card ${isInteractive ? 'interactive-card' : ''} ${onClick ? 'cursor-pointer' : ''} ${className}`}
       {...props}
     >
       {hasHeader && (

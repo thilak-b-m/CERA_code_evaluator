@@ -1,4 +1,4 @@
-import { api } from './api.js';
+import { ApiError, api } from './api.js';
 
 export async function getEvaluation(submissionId, token) {
   const result = await api.request(
@@ -9,11 +9,51 @@ export async function getEvaluation(submissionId, token) {
 }
 
 export async function autoEvaluate(submissionId, token) {
-  const result = await api.request(
-    `/api/evaluations/${encodeURIComponent(submissionId)}/auto`,
-    { method: 'POST', token },
-  );
-  return result.evaluation;
+  let batch = await startEvaluationBatch([submissionId], token);
+  while (['pending', 'processing'].includes(batch.status)) {
+    await new Promise((resolve) => window.setTimeout(resolve, 2500));
+    try {
+      batch = await getEvaluationBatch(batch.id, token);
+    } catch (error) {
+      if (error.status && error.status < 500) throw error;
+      // A dropped progress request does not cancel the persisted backend job.
+      // Continue polling the same batch instead of starting it again.
+    }
+  }
+  const job = batch.jobs.find((item) => item.submissionId === submissionId);
+  if (job?.status !== 'completed') {
+    throw new ApiError(job?.error?.message || 'AI evaluation failed. Open the evaluation queue to retry it.', 502);
+  }
+  const evaluation = await getEvaluation(submissionId, token);
+  if (!evaluation) throw new ApiError('The evaluation completed but could not be loaded. Refresh and try again.', 500);
+  return evaluation;
+}
+
+export async function startEvaluationBatch(submissionIds, token) {
+  const result = await api.request('/api/evaluations/batches', {
+    method: 'POST',
+    token,
+    body: { submissionIds },
+  });
+  return result.batch;
+}
+
+export async function getEvaluationBatch(batchId, token) {
+  const result = await api.request(`/api/evaluations/batches/${encodeURIComponent(batchId)}`, { token });
+  return result.batch;
+}
+
+export async function getLatestEvaluationBatch(token) {
+  const result = await api.request('/api/evaluations/batches/latest', { token });
+  return result.batch;
+}
+
+export async function retryEvaluationBatch(batchId, token) {
+  const result = await api.request(`/api/evaluations/batches/${encodeURIComponent(batchId)}/retry`, {
+    method: 'POST',
+    token,
+  });
+  return result.batch;
 }
 
 async function saveEvaluation(submissionId, evaluation, status, token) {
@@ -39,6 +79,10 @@ export const publishEvaluation = (submissionId, evaluation, token) => (
 export const evaluationService = {
   get: getEvaluation,
   autoEvaluate,
+  startBatch: startEvaluationBatch,
+  getBatch: getEvaluationBatch,
+  getLatestBatch: getLatestEvaluationBatch,
+  retryBatch: retryEvaluationBatch,
   saveDraft,
   publish: publishEvaluation,
 };

@@ -14,6 +14,7 @@ import Loading from '../../components/common/Loading.jsx';
 import Modal from '../../components/common/Modal.jsx';
 import { studentService } from '../../services/studentService.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+import Page from '../../components/common/Page.jsx';
 
 const emptyForm = {
   name: '',
@@ -98,21 +99,21 @@ export default function Profile() {
     }
   };
 
-  if (loading) return <Loading type="cards" count={2} />;
+  if (loading) return <Page eyebrow="STUDENT / ACCOUNT" title="Profile" subtitle="Loading your student profile…"><Loading type="cards" count={2} /></Page>;
 
   if (error) {
     return (
-      <div className="rounded-xl border border-cera-border bg-cera-card p-6 text-sm" style={{ color: 'var(--error)' }} role="alert">
-        Unable to load your student profile: {error}
-      </div>
+      <Page eyebrow="STUDENT / ACCOUNT" title="Profile" subtitle="Manage your student details and public profile">
+        <div className="panel p-6 text-sm" style={{ color: 'var(--error)' }} role="alert">Unable to load your student profile: {error}</div>
+      </Page>
     );
   }
 
   if (!profile) {
     return (
-      <div className="rounded-xl border border-cera-border bg-cera-card p-6 text-sm text-cera-muted">
-        No student enrollment profile is available for this account.
-      </div>
+      <Page eyebrow="STUDENT / ACCOUNT" title="Profile" subtitle="Manage your student details and public profile">
+        <div className="panel p-6 text-sm text-cera-muted">No student enrollment profile is available for this account.</div>
+      </Page>
     );
   }
 
@@ -126,6 +127,7 @@ export default function Profile() {
   ].filter((item) => item.value);
 
   return (
+    <Page eyebrow="STUDENT / ACCOUNT" title="Profile" subtitle="Manage your student details and public profile">
     <div className="space-y-5">
       <section className="rounded-xl border border-cera-border bg-cera-card p-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -240,5 +242,6 @@ export default function Profile() {
         </form>
       </Modal>
     </div>
+    </Page>
   );
 }

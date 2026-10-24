@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 
 import Page from '../../components/common/Page.jsx';
+import Section from '../../components/common/Section.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { submissionService } from '../../services/submissionService.js';
@@ -16,35 +17,6 @@ import {
   saveDraft,
   publishEvaluation,
 } from '../../services/evaluationService.js';
-
-function Section({
-  title,
-  kicker,
-  action,
-  children,
-}) {
-  return (
-    <section className="panel">
-      <div className="panel-header">
-        <div>
-          <div className="panel-title">
-            {title}
-          </div>
-
-          {kicker && (
-            <div className="panel-kicker">
-              {kicker}
-            </div>
-          )}
-        </div>
-
-        {action && <div>{action}</div>}
-      </div>
-
-      {children}
-    </section>
-  );
-}
 
 export default function Evaluation() {
   const { id } = useParams();
@@ -134,7 +106,7 @@ export default function Evaluation() {
       setEvaluationSource('faculty');
       notify(`Evaluation draft saved for ${s.student}`);
     } catch (error) {
-      notify(error.message || 'Unable to save evaluation draft.');
+      notify(error.message || 'Unable to save evaluation draft.', 'error');
     } finally {
       setSaving(false);
     }
@@ -155,7 +127,7 @@ export default function Evaluation() {
       setEvaluationSource(generated.source || 'ollama');
       notify(`AI evaluation published for ${s.student}.`);
     } catch (error) {
-      notify(error.message || 'Unable to generate an AI evaluation.');
+      notify(error.message || 'Unable to generate an AI evaluation.', 'error');
     } finally {
       setGenerating(false);
     }
@@ -197,7 +169,7 @@ export default function Evaluation() {
       setEvaluationSource('faculty');
       notify(`Evaluation published for ${s.student}`);
     } catch (error) {
-      notify(error.message || 'Unable to publish evaluation.');
+      notify(error.message || 'Unable to publish evaluation.', 'error');
     } finally {
       setSaving(false);
     }

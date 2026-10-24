@@ -8,10 +8,12 @@ import {
 const AppContext = createContext({
   notify: () => {},
   toast: '',
+  toastType: 'success',
 });
 
 export function AppProvider({ children }) {
   const [toast, setToast] = useState('');
+  const [toastType, setToastType] = useState('success');
 
   /* =========================
      TOAST
@@ -22,17 +24,18 @@ export function AppProvider({ children }) {
 
     const timer = setTimeout(() => {
       setToast('');
-    }, 2800);
+    }, toastType === 'error' ? 7000 : 2800);
 
     return () => clearTimeout(timer);
-  }, [toast]);
+  }, [toast, toastType]);
 
   /* =========================
      NOTIFICATION
   ========================= */
 
-  const notify = (message) => {
+  const notify = (message, type = 'success') => {
     setToast(message);
+    setToastType(type);
   };
 
   /* =========================
@@ -44,6 +47,7 @@ export function AppProvider({ children }) {
       value={{
         notify,
         toast,
+        toastType,
       }}
     >
       {children}

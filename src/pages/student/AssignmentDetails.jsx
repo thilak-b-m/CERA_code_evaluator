@@ -11,6 +11,7 @@ import ErrorState from '../../components/common/ErrorState';
 import { studentService } from '../../services/studentService';
 import { useAuth } from '../../context/AuthContext';
 import { formatDate } from '../../utils/formatDate.js';
+import Page from '../../components/common/Page.jsx';
 
 export default function AssignmentDetails() {
   const { id } = useParams();
@@ -34,18 +35,18 @@ export default function AssignmentDetails() {
     load();
   }, [id, token, user?.id]);
 
-  if (loading) return <Loading type="cards" count={3} />;
-  if (error || !assignment) return <ErrorState message="Could not load assignment details." onRetry={() => navigate('/student/assignments')} />;
+  if (loading) return <Page eyebrow="STUDENT / ASSIGNMENTS" title="Assignment details" subtitle="Loading assignment information…"><Loading type="cards" count={3} /></Page>;
+  if (error || !assignment) return <Page eyebrow="STUDENT / ASSIGNMENTS" title="Assignment details" subtitle="The assignment information could not be loaded."><ErrorState message="Could not load assignment details." onRetry={() => navigate('/student/assignments')} /></Page>;
 
   return (
-    <div className="space-y-5">
-      {/* Back button */}
-      <button
+    <Page eyebrow="STUDENT / ASSIGNMENTS" title="Assignment details" subtitle="Review the requirements and submission information."
+      actions={<button
         onClick={() => navigate('/student/assignments')}
-        className="flex items-center gap-2 text-sm text-cera-muted hover:text-cera-text transition-colors"
+        className="btn btn-ghost"
       >
         <ArrowLeft size={16} /> Back to Assignments
-      </button>
+      </button>}>
+    <div className="space-y-5">
 
       {/* Header */}
       <div className="bg-cera-card border border-cera-border rounded-xl p-6">
@@ -136,7 +137,10 @@ export default function AssignmentDetails() {
                 <p>{assignment.secureLab.recordFullscreenExits ? 'Fullscreen exits are recorded' : 'Fullscreen exit monitoring disabled'}</p>
                 <p>
                   Fullscreen exits allowed: {assignment.secureLab.maxFullscreenExits}
-                  {assignment.secureLab.maxFullscreenExits === 0 ? ' (auto-submits on exit)' : ''}
+                  {assignment.secureLab.maxFullscreenExits === 0 ? ' (count-based auto-submit disabled)' : ''}
+                </p>
+                <p>
+                  Auto-submit delay after fullscreen exit: {assignment.secureLab.fullscreenExitTimeoutSeconds ?? 15} seconds
                 </p>
                 <p>
                   Assessment duration: {assignment.timeLimit > 0 ? `${assignment.timeLimit} minutes` : 'Until the deadline'}
@@ -162,5 +166,6 @@ export default function AssignmentDetails() {
         </div>
       )}
     </div>
+    </Page>
   );
 }

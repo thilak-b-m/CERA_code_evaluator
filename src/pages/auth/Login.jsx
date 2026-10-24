@@ -111,7 +111,7 @@ export default function Login() {
           <div style={{ position: 'absolute', top: '18%', right: '11%', color: 'var(--accent)', font: '10px var(--app-font-mono)' }}>
             EXECUTE
           </div>
-          <div style={{ position: 'absolute', bottom: '18%', left: '8%', color: '#A5B4FC', font: '10px var(--app-font-mono)' }}>
+          <div style={{ position: 'absolute', bottom: '18%', left: '8%', color: 'var(--primary)', font: '10px var(--app-font-mono)' }}>
             ASSESS
           </div>
         </div>
@@ -129,7 +129,7 @@ export default function Login() {
           >
             Teaching code,
             <br />
-            <span style={{ color: '#A5B4FC' }}>with clarity.</span>
+            <span style={{ color: 'var(--primary)' }}>with clarity.</span>
           </h1>
 
           <p

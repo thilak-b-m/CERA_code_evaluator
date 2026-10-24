@@ -14,6 +14,8 @@ import {
   getPublishedEvaluation,
   initializeEvaluationCollections,
   saveEvaluation,
+  saveAIEvaluation,
+  EvaluationConflictError,
 } from './evaluations.service.js';
 
 function matches(document, query) {
@@ -55,6 +57,7 @@ class MemoryCollection {
   async updateOne(query, update) {
     const document = this.documents.find((candidate) => matches(candidate, query));
     if (document) Object.assign(document, update.$set);
+    return { matchedCount: document ? 1 : 0 };
   }
 }
 
@@ -102,14 +105,16 @@ test('faculty evaluations persist as drafts and become student-visible only when
   assert.equal((await listStudentSubmissions(database, studentId))[0].evaluation, undefined);
   assert.equal((await getEvaluation(database, submission.id, facultyId)).feedback, 'Good structure.');
 
-  const aiDraft = await saveEvaluation(
-    database,
-    submission.id,
-    facultyId,
-    { score: 7, feedback: 'AI-generated feedback.', status: 'draft' },
-    { source: 'ollama' },
+  await assert.rejects(
+    saveAIEvaluation(database, submission.id, facultyId, {
+      score: 7,
+      feedback: 'AI-generated feedback.',
+      status: 'published',
+    }),
+    (error) => error instanceof EvaluationConflictError && error.statusCode === 409,
   );
-  assert.equal(aiDraft.source, 'ollama');
+  assert.equal((await getEvaluation(database, submission.id, facultyId)).score, 8);
+  assert.equal((await getEvaluation(database, submission.id, facultyId)).feedback, 'Good structure.');
   assert.equal(await getPublishedEvaluation(database, submission.id, studentId), null);
 
   const published = await saveEvaluation(database, submission.id, facultyId, {
@@ -125,45 +130,57 @@ test('faculty evaluations persist as drafts and become student-visible only when
   assert.equal((await listStudentSubmissions(database, studentId))[0].evaluation.feedback, 'Correct and clear.');
   assert.equal((await listStudentSubmissions(database, studentId))[0].evaluation.aiFeedback, published.aiFeedback);
 
-  const autoPublished = await saveEvaluation(
+  const aiSubmission = await createSubmission(
     database,
-    submission.id,
-    facultyId,
-    {
-      score: 10,
-      feedback: 'AI judged this solution correct.',
-      guidance: {
-        category: 'none',
-        issue: 'No clear error found.',
-        explanation: 'The code appears to meet the stated requirement.',
-        correctionSteps: ['Try additional edge cases.'],
-        correctedCode: '',
-      },
-      status: 'published',
-    },
-    { source: 'ollama' },
+    { id: studentId, role: 'student' },
+    { assignmentId: assignment.id, language: 'python', code: 'print(1 + 2)' },
   );
+  const aiPublished = await saveAIEvaluation(database, aiSubmission.id, facultyId, {
+    score: 10,
+    feedback: 'AI judged this solution correct.',
+    guidance: {
+      category: 'none',
+      issue: 'No clear error found.',
+      explanation: 'The code appears to meet the stated requirement.',
+      correctionSteps: [],
+      correctedCode: '',
+    },
+    status: 'published',
+  });
+  const autoPublished = await saveAIEvaluation(database, aiSubmission.id, facultyId, {
+    score: 9,
+    feedback: 'The solution meets the requirement, with a small improvement available.',
+    guidance: {
+      category: 'logic',
+      issue: 'A small improvement is available.',
+      explanation: 'The submitted solution is correct, but could be clearer.',
+      correctionSteps: ['Use a clearer expression.'],
+      correctedCode: 'print(3)',
+    },
+    status: 'published',
+  });
   assert.equal(autoPublished.status, 'published');
   assert.equal(autoPublished.source, 'ollama');
-  assert.equal(autoPublished.guidance.category, 'none');
+  assert.equal(autoPublished.guidance.category, 'logic');
+  assert.equal(aiPublished.status, 'published');
   assert.equal(
-    (await getPublishedEvaluation(database, submission.id, studentId)).feedback,
-    'AI judged this solution correct.',
+    (await getPublishedEvaluation(database, aiSubmission.id, studentId)).feedback,
+    'The solution meets the requirement, with a small improvement available.',
   );
   assert.equal(
-    (await getPublishedEvaluation(database, submission.id, studentId)).guidance.correctionSteps[0],
-    'Try additional edge cases.',
+    (await getPublishedEvaluation(database, aiSubmission.id, studentId)).guidance.correctionSteps[0],
+    'Use a clearer expression.',
   );
   assert.equal(
-    (await getStudentSubmission(database, submission.id, studentId)).evaluation.guidance.category,
-    'none',
+    (await getStudentSubmission(database, aiSubmission.id, studentId)).evaluation.guidance.category,
+    'logic',
   );
   assert.equal(
-    (await listStudentSubmissions(database, studentId))[0].evaluation.guidance.issue,
-    'No clear error found.',
+    (await listStudentSubmissions(database, studentId)).find((item) => item.id === aiSubmission.id).evaluation.guidance.issue,
+    'A small improvement is available.',
   );
   assert.equal(
-    (await getStudentSubmission(database, submission.id, studentId)).evaluation.source,
+    (await getStudentSubmission(database, aiSubmission.id, studentId)).evaluation.source,
     'ollama',
   );
   await assert.rejects(

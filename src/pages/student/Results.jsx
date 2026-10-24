@@ -9,6 +9,7 @@ import EmptyState from '../../components/common/EmptyState';
 import { ScoreLineChart } from '../../components/student/ProgressChart';
 import { studentService } from '../../services/studentService';
 import { useAuth } from '../../context/AuthContext';
+import Page from '../../components/common/Page.jsx';
 
 const sortOptions = [
   { value: 'date-desc', label: 'Newest first' },
@@ -70,8 +71,8 @@ export default function Results() {
     return result;
   }, [results, subjectFilter, sortBy]);
 
-  if (loading) return <Loading type="cards" count={4} />;
-  if (error) return <ErrorState message="Could not load published results." onRetry={load} />;
+  if (loading) return <Page eyebrow="STUDENT / RESULTS" title="Results" subtitle="Loading your published scores…"><Loading type="cards" count={4} /></Page>;
+  if (error) return <Page eyebrow="STUDENT / RESULTS" title="Results" subtitle="Review your published scores and track your progress"><ErrorState message="Could not load published results." onRetry={load} /></Page>;
 
   const avgScore = results.length > 0
     ? `${(results.reduce((sum, result) => sum + result.percentage, 0) / results.length).toFixed(1)}%`
@@ -87,6 +88,7 @@ export default function Results() {
   ];
 
   return (
+    <Page eyebrow="STUDENT / RESULTS" title="Results" subtitle="Review your published scores and track your progress">
     <div className="space-y-5">
       {/* Summary Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -148,5 +150,6 @@ export default function Results() {
         </div>
       )}
     </div>
+    </Page>
   );
 }

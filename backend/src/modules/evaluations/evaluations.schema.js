@@ -35,13 +35,15 @@ export function parseEvaluationInput(input = {}, maxScore) {
       || !guidance.explanation.trim()
       || guidance.explanation.trim().length > 1000
       || !Array.isArray(guidance.correctionSteps)
-      || guidance.correctionSteps.length < 1
+      || (guidance.category !== 'none' && guidance.correctionSteps.length < 1)
       || guidance.correctionSteps.length > 6
       || guidance.correctionSteps.some(
         (step) => typeof step !== 'string' || !step.trim() || step.trim().length > 300,
       )
       || typeof guidance.correctedCode !== 'string'
       || guidance.correctedCode.length > 4000
+      || (guidance.category === 'none'
+        && (guidance.correctionSteps.length !== 0 || guidance.correctedCode !== ''))
     ) {
       throw new EvaluationValidationError('AI correction guidance is invalid.');
     }

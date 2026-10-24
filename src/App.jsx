@@ -1,6 +1,6 @@
 import { BrowserRouter } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check } from 'lucide-react';
+import { Check, CircleAlert } from 'lucide-react';
 
 import { AppProvider, useApp } from './context/AppContext.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
@@ -8,7 +8,7 @@ import { ThemeProvider } from './context/ThemeContext.jsx';
 import AppRoutes from './routes/AppRoutes.jsx';
 
 function AppContent() {
-  const { toast } = useApp();
+  const { toast, toastType } = useApp();
 
   return (
     <>
@@ -17,20 +17,25 @@ function AppContent() {
       <AnimatePresence>
         {toast && (
           <motion.div
-            className="toast"
+            className={`toast ${toastType === 'error' ? 'toast-error' : ''}`}
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 14 }}
             data-testid="status-toast"
+            role={toastType === 'error' ? 'alert' : 'status'}
+            aria-live={toastType === 'error' ? 'assertive' : 'polite'}
           >
-            <Check
+            {toastType === 'error' ? <CircleAlert
+              size={15}
+              style={{ verticalAlign: 'middle', marginRight: 7, color: 'var(--error)' }}
+            /> : <Check
               size={15}
               style={{
                 verticalAlign: 'middle',
                 marginRight: 7,
                 color: 'var(--success)',
               }}
-            />
+            />}
             {toast}
           </motion.div>
         )}

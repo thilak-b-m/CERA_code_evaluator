@@ -14,6 +14,7 @@ import FeedbackGuidance from '../../components/student/FeedbackGuidance';
 import { studentService } from '../../services/studentService';
 import { useAuth } from '../../context/AuthContext';
 import { formatDateTime } from '../../utils/formatDate.js';
+import Page from '../../components/common/Page.jsx';
 
 export default function SubmissionDetails() {
   const { id } = useParams();
@@ -37,8 +38,8 @@ export default function SubmissionDetails() {
     load();
   }, [id, token]);
 
-  if (loading) return <Loading type="cards" count={3} />;
-  if (error || !submission) return <ErrorState message="Could not load submission details." onRetry={() => navigate('/student/submissions')} />;
+  if (loading) return <Page eyebrow="STUDENT / SUBMISSIONS" title="Submission details" subtitle="Loading submitted work…"><Loading type="cards" count={3} /></Page>;
+  if (error || !submission) return <Page eyebrow="STUDENT / SUBMISSIONS" title="Submission details" subtitle="The submission information could not be loaded."><ErrorState message="Could not load submission details." onRetry={() => navigate('/student/submissions')} /></Page>;
 
   const hasFullDetails = Boolean(submission.code);
   const passedCount = Array.isArray(submission.testCases)
@@ -46,13 +47,14 @@ export default function SubmissionDetails() {
     : submission.testCasesPassed;
 
   return (
-    <div className="space-y-5">
-      <button
+    <Page eyebrow="STUDENT / SUBMISSIONS" title="Submission details" subtitle="Review the submitted code, execution results, and feedback."
+      actions={<button
         onClick={() => navigate('/student/submissions')}
-        className="flex items-center gap-2 text-sm text-cera-muted hover:text-cera-text transition-colors"
+        className="btn btn-ghost"
       >
         <ArrowLeft size={16} /> Back to Submissions
-      </button>
+      </button>}>
+    <div className="space-y-5">
 
       {/* Submission Info */}
       <div className="bg-cera-card border border-cera-border rounded-xl p-5">
@@ -174,5 +176,6 @@ export default function SubmissionDetails() {
         </>
       )}
     </div>
+    </Page>
   );
 }

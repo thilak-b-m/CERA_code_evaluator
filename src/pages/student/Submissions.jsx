@@ -6,8 +6,10 @@ import SearchBar from '../../components/common/SearchBar';
 import Dropdown from '../../components/common/Dropdown';
 import EmptyState from '../../components/common/EmptyState';
 import Loading from '../../components/common/Loading';
+import Button from '../../components/common/Button';
 import { studentService } from '../../services/studentService';
 import { useAuth } from '../../context/AuthContext';
+import Page from '../../components/common/Page.jsx';
 
 const reviewOptions = [
   { value: 'all', label: 'All submissions' },
@@ -71,12 +73,13 @@ export default function Submissions() {
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-  if (loading) return <Loading type="cards" count={6} />;
+  if (loading) return <Page eyebrow="STUDENT / SUBMISSIONS" title="Submissions" subtitle="Loading your submitted work…"><Loading type="cards" count={6} /></Page>;
   if (loadError) {
-    return <div role="alert" className="rounded-xl border border-cera-border bg-cera-card p-5 text-sm text-cera-error">{loadError}</div>;
+    return <Page eyebrow="STUDENT / SUBMISSIONS" title="Submissions" subtitle="Track submitted work and review its evaluation status"><div role="alert" className="panel p-5 text-sm text-cera-error">{loadError}</div></Page>;
   }
 
   return (
+    <Page eyebrow="STUDENT / SUBMISSIONS" title="Submissions" subtitle="Track submitted work and review its evaluation status">
     <div className="space-y-5">
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -114,7 +117,7 @@ export default function Submissions() {
           icon={Inbox}
           title="No submissions found"
           description="You haven't made any submissions matching these filters yet."
-          action={<button onClick={() => navigate('/student/assignments')} className="btn-primary">Browse Assignments</button>}
+          action={<Button onClick={() => navigate('/student/assignments')}>Browse Assignments</Button>}
         />
       ) : (
         <>
@@ -159,5 +162,6 @@ export default function Submissions() {
         </>
       )}
     </div>
+    </Page>
   );
 }

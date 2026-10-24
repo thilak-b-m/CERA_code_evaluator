@@ -66,7 +66,7 @@ export default function Assignments() {
 
   if (loading) {
     return (
-      <Page title="Assignments" subtitle="Browse and start your course assignments">
+      <Page eyebrow="STUDENT / ASSIGNMENTS" title="Assignments" subtitle="Browse and start your course assignments">
         <Card title="Assignments"><Loading type="cards" count={6} /></Card>
       </Page>
     );

@@ -35,6 +35,7 @@ export default function CreateAssignment() {
     recordTabSwitches: true,
     recordFullscreenExits: true,
     maxFullscreenExits: 2,
+    fullscreenExitTimeoutSeconds: 15,
   });
 
   useEffect(() => {

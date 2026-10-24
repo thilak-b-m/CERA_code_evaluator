@@ -30,7 +30,7 @@ function serializeAssignment(record) {
     difficulty: record.difficulty,
     languages: record.languages,
     targetYears: record.targetYears || [1, 2, 3, 4],
-    secureLab: record.secureLab || {
+    secureLab: {
       enabled: false,
       requireFullscreen: true,
       recordTabSwitches: true,
@@ -38,6 +38,9 @@ function serializeAssignment(record) {
       warningThreshold: 1,
       maxViolations: 3,
       maxFullscreenExits: 0,
+      fullscreenExitTimeoutSeconds: 15,
+      ...(record.secureLab || {}),
+      ...(!record.secureLab?.enabled ? { fullscreenExitTimeoutSeconds: 15 } : {}),
     },
     status: record.status,
     visibility: record.status,

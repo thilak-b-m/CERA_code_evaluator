@@ -413,7 +413,7 @@ export default function Notifications() {
 
                     <div
                       style={{
-                        color: '#71809B',
+                        color: 'var(--muted)',
                         fontSize: 10,
                         marginTop: 8,
                       }}

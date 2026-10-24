@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 
 import Page from '../../components/common/Page.jsx';
+import Section from '../../components/common/Section.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import SecureLabSettings from '../../components/faculty/SecureLabSettings.jsx';
@@ -15,32 +16,6 @@ import {
   getAssignmentById,
   updateAssignment,
 } from '../../services/assignmentService.js';
-
-function Section({
-  title,
-  kicker,
-  children,
-}) {
-  return (
-    <section className="panel">
-      <div className="panel-header">
-        <div>
-          <div className="panel-title">
-            {title}
-          </div>
-
-          {kicker && (
-            <div className="panel-kicker">
-              {kicker}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {children}
-    </section>
-  );
-}
 
 export default function EditAssignment() {
   const { id } = useParams();
@@ -73,6 +48,7 @@ export default function EditAssignment() {
     recordTabSwitches: true,
     recordFullscreenExits: true,
     maxFullscreenExits: 2,
+    fullscreenExitTimeoutSeconds: 15,
   });
 
   /* =========================
@@ -101,6 +77,7 @@ export default function EditAssignment() {
           recordTabSwitches: true,
           recordFullscreenExits: true,
           maxFullscreenExits: 2,
+          fullscreenExitTimeoutSeconds: 15,
         });
       })
       .catch((error) => {

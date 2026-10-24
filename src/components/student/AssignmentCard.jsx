@@ -19,7 +19,17 @@ export default function AssignmentCard({ assignment, compact = false }) {
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -2 }}
       onClick={handleClick}
-      className="bg-cera-card border border-cera-border rounded-xl p-5 cursor-pointer hover:border-cera-muted/30 transition-colors"
+      role="link"
+      tabIndex={0}
+      aria-label={`Open assignment: ${assignment.title}`}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          handleClick();
+        }
+      }}
+      className="interactive-card bg-cera-card rounded-xl p-5 cursor-pointer"
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
@@ -46,6 +56,7 @@ export default function AssignmentCard({ assignment, compact = false }) {
           </span>
         </div>
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             navigate(`/student/assignments/${assignment.id}`);

@@ -6,6 +6,7 @@ import Loading from '../../components/common/Loading.jsx';
 import SearchBar from '../../components/common/SearchBar.jsx';
 import { analyticsService } from '../../services/analyticsService.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+import Page from '../../components/common/Page.jsx';
 
 export default function Leaderboard() {
   const { token } = useAuth();
@@ -37,23 +38,18 @@ export default function Leaderboard() {
     return rankings.filter((entry) => entry.name.toLowerCase().includes(query));
   }, [rankings, search]);
 
-  if (loading) return <Loading type="table" />;
+  if (loading) return <Page eyebrow="STUDENT / DEPARTMENT RANKINGS" title="Leaderboard" subtitle="Loading department rankings…"><Loading type="table" /></Page>;
   if (error) {
-    return <div className="rounded-xl border border-cera-error/30 bg-cera-card p-5 text-sm text-cera-error" role="alert">{error}</div>;
+    return (
+      <Page eyebrow="STUDENT / DEPARTMENT RANKINGS" title="Leaderboard" subtitle="View ranking based on published assignment evaluations">
+        <div className="panel p-5 text-sm text-cera-error" role="alert">{error}</div>
+      </Page>
+    );
   }
 
   return (
+    <Page eyebrow="STUDENT / DEPARTMENT RANKINGS" title="Leaderboard" subtitle={metric}>
     <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="mb-1 flex items-center gap-2 text-cera-highlight">
-            <Trophy size={18} />
-            <span className="text-xs font-semibold uppercase tracking-wider">Department rankings</span>
-          </div>
-          <h1 className="m-0 text-2xl font-bold text-cera-text">Leaderboard</h1>
-          <p className="mt-1 text-sm text-cera-muted">{metric}</p>
-        </div>
-      </div>
 
       <div>
         <SearchBar
@@ -81,5 +77,6 @@ export default function Leaderboard() {
         />
       )}
     </div>
+    </Page>
   );
 }

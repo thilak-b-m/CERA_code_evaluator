@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 
@@ -12,6 +12,15 @@ export default function Dropdown({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef(null);
+  const triggerRef = useRef(null);
+  const optionRefs = useRef([]);
+  const listboxId = useId();
+
+  const focusOption = (index) => {
+    if (!options.length) return;
+    const boundedIndex = Math.max(0, Math.min(index, options.length - 1));
+    optionRefs.current[boundedIndex]?.focus();
+  };
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -19,26 +28,60 @@ export default function Dropdown({
         setIsOpen(false);
       }
     };
-    const handleEscape = (e) => {
-      if (e.key === 'Escape') setIsOpen(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
+    document.addEventListener('pointerdown', handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('pointerdown', handleClickOutside);
     };
   }, []);
 
   const selected = options.find((opt) => opt.value === value);
+  const selectedIndex = options.findIndex((option) => option.value === value);
+
+  const handleTriggerKeyDown = (event) => {
+    if (event.key === 'Escape' && isOpen) {
+      event.preventDefault();
+      setIsOpen(false);
+      triggerRef.current?.focus();
+      return;
+    }
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    event.preventDefault();
+    setIsOpen(true);
+    const firstIndex = selectedIndex >= 0 ? selectedIndex : 0;
+    requestAnimationFrame(() => focusOption(event.key === 'ArrowUp' ? (selectedIndex >= 0 ? selectedIndex : options.length - 1) : firstIndex));
+  };
+
+  const handleOptionKeyDown = (event, index) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      focusOption((index + 1) % options.length);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      focusOption((index - 1 + options.length) % options.length);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      focusOption(0);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      focusOption(options.length - 1);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setIsOpen(false);
+      triggerRef.current?.focus();
+    }
+  };
 
   return (
     <div ref={ref} className={`relative ${className}`}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
+        onKeyDown={handleTriggerKeyDown}
         className="input-base flex w-full items-center justify-between gap-2 cursor-pointer px-3 text-sm"
         aria-haspopup="listbox"
+        aria-controls={listboxId}
+        aria-label={selected?.label || placeholder}
         aria-expanded={isOpen}
       >
         <span className="flex min-w-0 items-center gap-2">
@@ -55,6 +98,7 @@ export default function Dropdown({
       <AnimatePresence>
         {isOpen && (
           <motion.div
+            id={listboxId}
             role="listbox"
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -62,15 +106,18 @@ export default function Dropdown({
             transition={{ duration: 0.15 }}
             className="absolute z-30 mt-1 w-full min-w-max bg-cera-elevated border border-cera-border rounded-lg shadow-xl max-h-60 overflow-y-auto py-1"
           >
-            {options.map((opt) => (
+            {options.map((opt, index) => (
               <button
+                ref={(element) => { optionRefs.current[index] = element; }}
                 key={opt.value}
                 type="button"
                 role="option"
                 aria-selected={opt.value === value}
+                onKeyDown={(event) => handleOptionKeyDown(event, index)}
                 onClick={() => {
                   onChange(opt.value);
                   setIsOpen(false);
+                  triggerRef.current?.focus();
                 }}
                 className={`w-full text-left px-3 py-2 text-sm transition-colors duration-150 hover:bg-cera-card ${
                   opt.value === value ? 'text-cera-highlight bg-cera-card' : 'text-cera-text'

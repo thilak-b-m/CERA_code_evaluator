@@ -7,6 +7,7 @@ import { initializePromotionCollections } from './modules/students/students.serv
 import { initializeAssignmentCollections } from './modules/assignments/assignments.service.js';
 import { initializeSubmissionCollections } from './modules/submissions/submissions.service.js';
 import { initializeEvaluationCollections } from './modules/evaluations/evaluations.service.js';
+import { initializeEvaluationQueueCollections, startEvaluationQueue } from './modules/evaluations/evaluation-queue.service.js';
 import { initializeAnalyticsCollections } from './modules/analytics/analytics.service.js';
 import { initializeNotificationCollections } from './modules/notifications/notifications.service.js';
 import { initializeReportCollections } from './modules/reports/reports.service.js';
@@ -65,11 +66,19 @@ async function startServer() {
     await initializeAssignmentCollections(database);
     await initializeSubmissionCollections(database);
     await initializeEvaluationCollections(database);
+    await initializeEvaluationQueueCollections(database);
     await initializeAnalyticsCollections(database);
     await initializeNotificationCollections(database);
     await initializeReportCollections(database);
     await initializeLiveLabCollections(database);
     await initializeSecureAssessmentCollections(database);
+    await startEvaluationQueue(database, {
+      ollamaBaseUrl: config.ollamaBaseUrl,
+      ollamaModel: config.ollamaModel,
+      ollamaTimeoutMs: config.ollamaTimeoutMs,
+      retryLimit: config.ollamaRetryLimit,
+      retryDelayMs: config.ollamaRetryDelayMs,
+    });
   } catch (error) {
     await new Promise((resolve) => server.close(resolve));
     throw error;

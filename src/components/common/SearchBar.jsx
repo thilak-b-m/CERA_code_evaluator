@@ -10,6 +10,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Search...', 
       <input
         type="text"
         value={value}
+        aria-label={placeholder}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className="input-base pl-10 w-full"

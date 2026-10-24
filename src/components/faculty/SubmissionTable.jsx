@@ -1,29 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { formatDateTime } from '../../utils/formatDate.js';
-
-function Avatar({ children, color }) {
-  return (
-    <span
-      className="avatar"
-      style={{
-        background: color
-          ? `linear-gradient(135deg, ${color}, #6366F1)`
-          : undefined,
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-function Status({ children, tone = 'neutral' }) {
-  return (
-    <span className={`status status-${tone}`}>
-      <span className="status-dot" />
-      {children}
-    </span>
-  );
-}
+import Avatar from '../../components/faculty/Avatar.jsx';
+import Status from '../../components/common/Status.jsx';
 
 export default function SubmissionTable({ rows = [] }) {
   const navigate = useNavigate();

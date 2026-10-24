@@ -21,6 +21,15 @@ export default function ActivityFeed({ submissions }) {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.05 }}
             onClick={() => navigate(`/student/submissions/${sub.id}`)}
+            role="link"
+            tabIndex={0}
+            aria-label={`Open submission for ${sub.assignment}`}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                navigate(`/student/submissions/${sub.id}`);
+              }
+            }}
             className="flex items-center gap-3 cursor-pointer hover:bg-cera-elevated/50 p-2 rounded-lg transition-colors"
           >
             <div className={`w-2 h-2 rounded-full ${getStatusColor(sub.evaluation?.status)} shrink-0`} />

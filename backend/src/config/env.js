@@ -46,9 +46,21 @@ if (!['http:', 'https:'].includes(parsedOllamaBaseUrl.protocol)
     || parsedOllamaBaseUrl.username || parsedOllamaBaseUrl.password) {
   throw new Error('OLLAMA_BASE_URL must be an HTTP or HTTPS URL without credentials.');
 }
-const ollamaModel = process.env.OLLAMA_MODEL || 'qwen2.5-coder:3b';
+const ollamaModel = process.env.OLLAMA_MODEL || 'qwen2.5-coder:14b';
 if (ollamaModel.length > 120 || !ollamaModel.trim()) {
   throw new Error('OLLAMA_MODEL must be a model name of 1 to 120 characters.');
+}
+const ollamaTimeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS || 300000);
+if (!Number.isInteger(ollamaTimeoutMs) || ollamaTimeoutMs < 30000 || ollamaTimeoutMs > 900000) {
+  throw new Error('OLLAMA_TIMEOUT_MS must be an integer from 30000 to 900000 milliseconds.');
+}
+const ollamaRetryLimit = Number(process.env.OLLAMA_RETRY_LIMIT || 1);
+if (!Number.isInteger(ollamaRetryLimit) || ollamaRetryLimit < 0 || ollamaRetryLimit > 3) {
+  throw new Error('OLLAMA_RETRY_LIMIT must be an integer from 0 to 3.');
+}
+const ollamaRetryDelayMs = Number(process.env.OLLAMA_RETRY_DELAY_MS || 3000);
+if (!Number.isInteger(ollamaRetryDelayMs) || ollamaRetryDelayMs < 500 || ollamaRetryDelayMs > 30000) {
+  throw new Error('OLLAMA_RETRY_DELAY_MS must be an integer from 500 to 30000 milliseconds.');
 }
 
 const mongoDnsServers = (process.env.MONGODB_DNS_SERVERS || '')
@@ -73,6 +85,9 @@ export const config = Object.freeze({
   jwtSecret,
   ollamaBaseUrl: parsedOllamaBaseUrl.toString().replace(/\/$/, ''),
   ollamaModel,
+  ollamaTimeoutMs,
+  ollamaRetryLimit,
+  ollamaRetryDelayMs,
   corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173')
     .split(',')
     .map((origin) => origin.trim())

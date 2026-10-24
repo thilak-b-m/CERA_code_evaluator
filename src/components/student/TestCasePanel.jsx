@@ -15,7 +15,7 @@ export default function TestCasePanel({ testCases, running, results }) {
           </div>
         )}
       </div>
-      <div className="divide-y divide-cera-border max-h-64 overflow-y-auto">
+      <div className="divide-y divide-cera-border">
         <AnimatePresence>
           {displayCases.map((tc, index) => {
             const passed = tc.status === 'Passed';
@@ -47,16 +47,16 @@ export default function TestCasePanel({ testCases, running, results }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                   <div className="bg-cera-elevated rounded-lg p-2.5">
                     <p className="text-cera-muted mb-1">Input</p>
-                    <p className="text-cera-text font-mono">{tc.input}</p>
+                    <p className="max-h-28 overflow-auto whitespace-pre-wrap break-words font-mono text-cera-text [overflow-wrap:anywhere]">{tc.input}</p>
                   </div>
                   <div className="bg-cera-elevated rounded-lg p-2.5">
                     <p className="text-cera-muted mb-1">Expected</p>
-                    <p className="text-cera-text font-mono">{tc.expected}</p>
+                    <p className="max-h-28 overflow-auto whitespace-pre-wrap break-words font-mono text-cera-text [overflow-wrap:anywhere]">{tc.expected}</p>
                   </div>
                   {tc.actual !== null && tc.actual !== undefined && (
                     <div className={`rounded-lg p-2.5 sm:col-span-2 ${failed ? 'bg-cera-error/10' : 'bg-cera-success/10'}`}>
                       <p className={`mb-1 ${failed ? 'text-cera-error' : 'text-cera-success'}`}>Actual Output</p>
-                      <p className="text-cera-text font-mono">{tc.actual}</p>
+                      <p className="max-h-28 overflow-auto whitespace-pre-wrap break-words font-mono text-cera-text [overflow-wrap:anywhere]">{tc.actual}</p>
                     </div>
                   )}
                 </div>

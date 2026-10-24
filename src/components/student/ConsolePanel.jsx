@@ -30,7 +30,7 @@ export default function ConsolePanel({ output, executionTime, memoryUsage, statu
                 {status}
               </span>
             </div>
-            <pre className="text-sm text-cera-text font-mono whitespace-pre-wrap bg-cera-bg/50 rounded-lg p-3 mb-3">
+            <pre className="mb-3 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-cera-bg/50 p-3 font-mono text-sm text-cera-text [overflow-wrap:anywhere]">
               {output}
             </pre>
             {Number.isFinite(executionTime) && (

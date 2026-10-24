@@ -16,4 +16,17 @@ export function formatDateTime(value) {
   });
 }
 
+export function formatTimeAgo(timestamp) {
+  const now = new Date();
+  const past = new Date(timestamp);
+  const diffMs = now - past;
+  const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffD = Math.floor(diffH / 24);
+
+  if (diffD > 0) return `${diffD}d ago`;
+  if (diffH > 0) return `${diffH}h ago`;
+  const diffM = Math.floor(diffMs / (1000 * 60));
+  return diffM > 0 ? `${diffM}m ago` : 'Just now';
+}
+
 export default formatDate;

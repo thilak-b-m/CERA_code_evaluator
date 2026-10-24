@@ -13,6 +13,7 @@ const SECURE_LAB_DEFAULTS = Object.freeze({
   warningThreshold: 1,
   maxViolations: 3,
   maxFullscreenExits: 0,
+  fullscreenExitTimeoutSeconds: 15,
 });
 
 export class AssignmentValidationError extends Error {
@@ -118,6 +119,14 @@ function parseSecureLabSettings(value) {
       parsed[field] = limit;
     }
   }
+  if (Object.hasOwn(value, 'fullscreenExitTimeoutSeconds')) {
+    const timeout = Number(value.fullscreenExitTimeoutSeconds);
+    if (!Number.isInteger(timeout) || timeout < 1 || timeout > 300) {
+      throw new AssignmentValidationError('Secure Lab fullscreen exit timeout must be a whole number between 1 and 300 seconds.');
+    }
+    parsed.fullscreenExitTimeoutSeconds = timeout;
+  }
+  if (!parsed.enabled) parsed.fullscreenExitTimeoutSeconds = 15;
   return parsed;
 }
 

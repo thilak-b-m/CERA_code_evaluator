@@ -37,7 +37,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <Page title="Welcome back" subtitle="Your assignments and published results">
+      <Page eyebrow="STUDENT / DASHBOARD" title="Welcome back" subtitle="Your assignments and published results">
         <Card title="Dashboard"><div style={{ padding: 20 }}><SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard /></div></Card>
       </Page>
     );
@@ -45,7 +45,7 @@ export default function Dashboard() {
 
   if (error || !overview) {
     return (
-      <Page title="Welcome back" subtitle="Your assignments and published results">
+      <Page eyebrow="STUDENT / DASHBOARD" title="Welcome back" subtitle="Your assignments and published results">
         <ErrorState message="Could not load your student dashboard." onRetry={load} />
       </Page>
     );

@@ -47,6 +47,21 @@ test('evaluation validates score bounds, feedback, and publication status', () =
       status: 'published',
     },
   );
+  assert.deepEqual(
+    parseEvaluationInput({
+      score: 10,
+      feedback: 'The solution meets the stated requirements and no definite defect was found.',
+      guidance: {
+        category: 'none',
+        issue: 'No definite defect was identified.',
+        explanation: 'The implementation satisfies the stated behavior and no failure is supported by the available evidence.',
+        correctionSteps: [],
+        correctedCode: '',
+      },
+      status: 'published',
+    }, 10).guidance.correctionSteps,
+    [],
+  );
   assert.throws(
     () => parseEvaluationInput({
       score: 8,

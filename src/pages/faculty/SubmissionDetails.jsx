@@ -6,54 +6,13 @@ import {
 } from 'lucide-react';
 
 import Page from '../../components/common/Page.jsx';
+import Section from '../../components/common/Section.jsx';
+import Status from '../../components/common/Status.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { submissionService } from '../../services/submissionService.js';
 import { getEvaluation } from '../../services/evaluationService.js';
 import { formatDateTime } from '../../utils/formatDate.js';
-
-function Section({
-  title,
-  kicker,
-  action,
-  children,
-}) {
-  return (
-    <section className="panel">
-      <div className="panel-header">
-        <div>
-          <div className="panel-title">
-            {title}
-          </div>
-
-          {kicker && (
-            <div className="panel-kicker">
-              {kicker}
-            </div>
-          )}
-        </div>
-
-        {action && <div>{action}</div>}
-      </div>
-
-      {children}
-    </section>
-  );
-}
-
-function Status({
-  children,
-  tone = 'neutral',
-}) {
-  return (
-    <span
-      className={`status status-${tone}`}
-    >
-      <span className="status-dot" />
-      {children}
-    </span>
-  );
-}
 
 export default function SubmissionDetails() {
   const { id } = useParams();

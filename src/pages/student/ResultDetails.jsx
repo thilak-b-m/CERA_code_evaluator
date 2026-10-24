@@ -9,6 +9,7 @@ import FeedbackGuidance from '../../components/student/FeedbackGuidance';
 import { studentService } from '../../services/studentService';
 import { useAuth } from '../../context/AuthContext';
 import { formatDateTime } from '../../utils/formatDate.js';
+import Page from '../../components/common/Page.jsx';
 
 export default function ResultDetails() {
   const { id } = useParams();
@@ -36,13 +37,12 @@ export default function ResultDetails() {
     load();
   }, [load]);
 
-  if (loading) return <Loading type="cards" count={3} />;
+  if (loading) return <Page eyebrow="STUDENT / RESULTS" title="Result details" subtitle="Loading your published evaluation…"><Loading type="cards" count={3} /></Page>;
   if (error || !result) {
     return (
-      <ErrorState
-        message="Could not load a published result for this submission."
-        onRetry={load}
-      />
+      <Page eyebrow="STUDENT / RESULTS" title="Result details" subtitle="The published evaluation could not be loaded.">
+        <ErrorState message="Could not load a published result for this submission." onRetry={load} />
+      </Page>
     );
   }
 
@@ -53,13 +53,14 @@ export default function ResultDetails() {
       : 'text-cera-warning';
 
   return (
-    <div className="space-y-5">
-      <button
+    <Page eyebrow="STUDENT / RESULTS" title="Result details" subtitle="Published assignment evaluation and feedback."
+      actions={<button
         onClick={() => navigate('/student/results')}
-        className="flex items-center gap-2 text-sm text-cera-muted hover:text-cera-text transition-colors"
+        className="btn btn-ghost"
       >
         <ArrowLeft size={16} /> Back to Results
-      </button>
+      </button>}>
+    <div className="space-y-5">
 
       <div className="bg-cera-card border border-cera-border rounded-xl p-6">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
@@ -119,5 +120,6 @@ export default function ResultDetails() {
 
       <FeedbackGuidance guidance={result.guidance} />
     </div>
+    </Page>
   );
 }

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Download, Plus, Search, Users } from 'lucide-react';
+import { Check, ChevronDown, Download, MoreHorizontal, Plus, Search, Users } from 'lucide-react';
+
+import Dropdown from '../../components/common/Dropdown.jsx';
 
 import Page from '../../components/common/Page.jsx';
 import Card from '../../components/common/Card.jsx';
@@ -30,87 +31,43 @@ function StatusIndicator({ active }) {
 }
 
 function StudentActionsMenu({ student, onEdit, onCorrect, onStatus, onDelete }) {
-  const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
-  const triggerRef = useRef(null);
-  const menuRef = useRef(null);
-  const menuId = `student-actions-${student.usn.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!open) return undefined;
-    const closeOnOutsidePointer = (event) => {
-      if (!triggerRef.current?.contains(event.target) && !menuRef.current?.contains(event.target)) setOpen(false);
-    };
-    const closeOnEscape = (event) => {
-      if (event.key === 'Escape') {
-        setOpen(false);
-        triggerRef.current?.focus();
-      }
-    };
-    const closeOnScrollOrResize = () => setOpen(false);
-    document.addEventListener('pointerdown', closeOnOutsidePointer);
-    document.addEventListener('keydown', closeOnEscape);
-    window.addEventListener('scroll', closeOnScrollOrResize, true);
-    window.addEventListener('resize', closeOnScrollOrResize);
-    return () => {
-      document.removeEventListener('pointerdown', closeOnOutsidePointer);
-      document.removeEventListener('keydown', closeOnEscape);
-      window.removeEventListener('scroll', closeOnScrollOrResize, true);
-      window.removeEventListener('resize', closeOnScrollOrResize);
-    };
-  }, [open]);
+  const actions = [
+    { value: 'view', label: 'View student' },
+    { value: 'edit', label: 'Edit details' },
+    { value: 'correct', label: 'Correct academic year' },
+    {
+      value: student.status === 'active' ? 'deactivate' : 'reactivate',
+      label: student.status === 'active' ? 'Deactivate' : 'Reactivate',
+    },
+    { value: 'delete', label: 'Delete account' },
+  ];
 
-  const toggleMenu = () => {
-    if (open) {
-      setOpen(false);
-      return;
+  const handleSelect = (value) => {
+    if (value === 'view') {
+      navigate(`/students/${encodeURIComponent(student.usn)}`);
+    } else if (value === 'edit') {
+      onEdit(student);
+    } else if (value === 'correct') {
+      onCorrect(student);
+    } else if (value === 'deactivate' || value === 'reactivate') {
+      onStatus(student);
+    } else if (value === 'delete') {
+      onDelete(student);
     }
-    const bounds = triggerRef.current.getBoundingClientRect();
-    const menuHeight = 220;
-    const top = bounds.bottom + menuHeight + 12 > window.innerHeight
-      ? Math.max(8, bounds.top - menuHeight - 8)
-      : bounds.bottom + 6;
-    const left = Math.max(8, Math.min(bounds.right - 208, window.innerWidth - 216));
-    setPosition({ top, left });
-    setOpen(true);
   };
 
-  const runAction = (callback) => {
-    setOpen(false);
-    callback();
-  };
-
-  const menu = open && createPortal(
-    <div
-      ref={menuRef}
-      id={menuId}
-      className="fixed z-[100] grid w-52 gap-0.5 rounded-lg border border-cera-border bg-cera-card p-1.5 shadow-xl shadow-black/20"
-      style={position}
-    >
-      <Link to={`/students/${encodeURIComponent(student.usn)}`} onClick={() => setOpen(false)} className="rounded-md px-3 py-2 text-sm text-cera-text hover:bg-cera-elevated">View student</Link>
-      <button type="button" onClick={() => runAction(() => onEdit(student))} className="rounded-md px-3 py-2 text-left text-sm text-cera-text hover:bg-cera-elevated">Edit details</button>
-      <button type="button" onClick={() => runAction(() => onCorrect(student))} className="rounded-md px-3 py-2 text-left text-sm text-cera-text hover:bg-cera-elevated">Correct academic year</button>
-      <button type="button" onClick={() => runAction(() => onStatus(student))} className="rounded-md px-3 py-2 text-left text-sm text-cera-text hover:bg-cera-elevated">{student.status === 'active' ? 'Deactivate' : 'Reactivate'}</button>
-      <div className="my-1 border-t border-cera-border" />
-      <button type="button" onClick={() => runAction(() => onDelete(student))} className="rounded-md px-3 py-2 text-left text-sm text-cera-error hover:bg-cera-elevated">Delete account</button>
-    </div>,
-    document.body,
+  return (
+    <Dropdown
+      value={null}
+      onChange={handleSelect}
+      options={actions}
+      placeholder="Actions"
+      icon={MoreHorizontal}
+      className="w-48"
+    />
   );
-
-  return <>
-    <button
-      ref={triggerRef}
-      type="button"
-      aria-haspopup="true"
-      aria-expanded={open}
-      aria-controls={menuId}
-      onClick={toggleMenu}
-      className="ml-auto inline-flex h-8 items-center gap-2 rounded-md border border-cera-border px-2.5 text-xs font-medium text-cera-muted transition-colors hover:border-cera-primary/50 hover:bg-cera-elevated hover:text-cera-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-cera-primary"
-    >
-      Actions <ChevronDown size={14} aria-hidden="true" className={`transition-transform ${open ? 'rotate-180' : ''}`} />
-    </button>
-    {menu}
-  </>;
 }
 
 function StudentForm({ open, onClose, onSubmit, form, setForm, department, error, saving, editing = false }) {
@@ -476,7 +433,7 @@ export default function Students() {
           <div className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_150px_150px_auto_auto] md:items-center">
             <label className="relative block" htmlFor="student-search">
               <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cera-muted" />
-              <input id="student-search" className="input-base w-full pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, ID, or email" />
+              <input id="student-search" className="input-base w-full h-10 pl-9 pr-3" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, ID, or email" />
             </label>
             <label className="grid gap-1" htmlFor="student-year-filter"><span className="sr-only">Filter by academic year</span>
               <select id="student-year-filter" className="select" value={year} onChange={(event) => setYear(event.target.value)}>
@@ -488,10 +445,10 @@ export default function Students() {
                 <option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option>
               </select>
             </label>
-            <Button variant="outline" size="sm" onClick={toggleSelectFiltered} loading={selectingAll} disabled={!pagination.total} icon={allFilteredSelected ? Check : Users} className="whitespace-nowrap">
+            <Button variant="outline" size="sm" onClick={toggleSelectFiltered} loading={selectingAll} disabled={!pagination.total} icon={allFilteredSelected ? Check : Users} className="whitespace-nowrap h-10">
               {allFilteredSelected ? 'Clear selection' : 'Select all'}
             </Button>
-            <Button variant="outline" size="sm" onClick={() => exportStudents()} loading={exporting} icon={Download} className="whitespace-nowrap">Export CSV</Button>
+            <Button variant="outline" size="sm" onClick={() => exportStudents()} loading={exporting} icon={Download} className="whitespace-nowrap h-10">Export CSV</Button>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-cera-muted">
             <span className="inline-flex items-center gap-2"><Users size={14} />{pagination.total} {pagination.total === 1 ? 'student' : 'students'}{user?.department ? ` · ${user.department}` : ''}</span>

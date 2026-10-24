@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { FileText, CheckCircle, AlertTriangle, Bell, Award, MessageSquare, Settings } from 'lucide-react';
+import { formatTimeAgo } from '../../utils/formatDate.js';
 
 const typeConfig = {
   Assignment: { icon: FileText, color: 'text-cera-primary', bg: 'bg-cera-primary/10' },
@@ -9,19 +10,6 @@ const typeConfig = {
   'Faculty Feedback': { icon: MessageSquare, color: 'text-cera-warning', bg: 'bg-cera-warning/10' },
   System: { icon: Settings, color: 'text-cera-muted', bg: 'bg-cera-muted/10' },
 };
-
-function timeAgo(timestamp) {
-  const now = new Date();
-  const past = new Date(timestamp);
-  const diffMs = now - past;
-  const diffH = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffD = Math.floor(diffH / 24);
-
-  if (diffD > 0) return `${diffD}d ago`;
-  if (diffH > 0) return `${diffH}h ago`;
-  const diffM = Math.floor(diffMs / (1000 * 60));
-  return diffM > 0 ? `${diffM}m ago` : 'Just now';
-}
 
 export default function NotificationCard({ notification, onMarkRead, onDelete, onOpen }) {
   const cfg = typeConfig[notification.type] || typeConfig.System;
@@ -50,10 +38,11 @@ export default function NotificationCard({ notification, onMarkRead, onDelete, o
             {!notification.read && <span className="w-2 h-2 rounded-full bg-cera-primary shrink-0 mt-1.5" />}
           </div>
           <div className="flex items-center justify-between mt-3">
-            <span className="text-xs text-cera-muted">{timeAgo(notification.timestamp)}</span>
+            <span className="text-xs text-cera-muted">{formatTimeAgo(notification.timestamp)}</span>
             <div className="flex items-center gap-2">
               {notification.route && (
                 <button
+                  type="button"
                   onClick={() => onOpen(notification)}
                   className="text-xs text-cera-highlight hover:text-cera-primary transition-colors"
                 >
@@ -62,6 +51,7 @@ export default function NotificationCard({ notification, onMarkRead, onDelete, o
               )}
               {!notification.read && (
                 <button
+                  type="button"
                   onClick={() => onMarkRead(notification.id)}
                   className="text-xs text-cera-highlight hover:text-cera-primary transition-colors"
                 >
@@ -69,6 +59,7 @@ export default function NotificationCard({ notification, onMarkRead, onDelete, o
                 </button>
               )}
               <button
+                type="button"
                 onClick={() => onDelete(notification.id)}
                 className="text-xs text-cera-muted hover:text-cera-error transition-colors"
               >

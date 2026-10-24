@@ -4,6 +4,7 @@ const defaults = {
   recordTabSwitches: true,
   recordFullscreenExits: true,
   maxFullscreenExits: 2,
+  fullscreenExitTimeoutSeconds: 15,
 };
 
 function SettingToggle({ label, checked, onChange, disabled = false }) {
@@ -37,7 +38,11 @@ export default function SecureLabSettings({ value, onChange }) {
         <SettingToggle
           label="Enable Secure Lab Mode"
           checked={settings.enabled}
-          onChange={(checked) => update('enabled', checked)}
+          onChange={(checked) => onChange({
+            ...settings,
+            enabled: checked,
+            ...(checked ? {} : { fullscreenExitTimeoutSeconds: 15 }),
+          })}
         />
         <div className="grid gap-3 pl-2 sm:grid-cols-2">
           <SettingToggle
@@ -60,6 +65,22 @@ export default function SecureLabSettings({ value, onChange }) {
           />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
+          <label>
+            <span className="label">Time before auto-submit after fullscreen exit (seconds)</span>
+            <input
+              className="input"
+              type="number"
+              min="1"
+              max="300"
+              step="1"
+              value={settings.enabled ? settings.fullscreenExitTimeoutSeconds : 15}
+              disabled={!settings.enabled}
+              onChange={(event) => update('fullscreenExitTimeoutSeconds', Number(event.target.value))}
+            />
+            <span className="mt-1 block text-xs text-cera-muted">
+              Students have this long to return to fullscreen before auto-submit. Default: 15 seconds (1–300 seconds).
+            </span>
+          </label>
           <label>
             <span className="label">Auto-submit at fullscreen exits (max)</span>
             <input

@@ -53,10 +53,10 @@ export default function CodeSubmission() {
   const [secureNow, setSecureNow] = useState(Date.now());
   const [secureFullscreen, setSecureFullscreen] = useState(Boolean(document.fullscreenElement));
   const autoSubmitTriggered = useRef(false);
+  const [fullscreenTimeoutReached, setFullscreenTimeoutReached] = useState(false);
   const [fullscreenWarningActive, setFullscreenWarningActive] = useState(false);
   const [fullscreenTimeRemaining, setFullscreenTimeRemaining] = useState(0);
   const fullscreenWarningTimerRef = useRef(null);
-  const fullscreenTimeoutAutoSubmit = useRef(false);
   const pendingSecureEvents = useRef([]);
   const secureAttemptRef = useRef(null);
   const secureAssignmentRef = useRef(null);
@@ -71,6 +71,13 @@ export default function CodeSubmission() {
           studentService.getAssignmentTestCases(id, token),
         ]);
         if (cancelled) return;
+        if (data.status === 'Submitted') {
+          navigate(
+            data.submissionId ? `/student/submissions/${data.submissionId}` : '/student/submissions',
+            { replace: true },
+          );
+          return;
+        }
         let currentAttempt = null;
         if (data.secureLab?.enabled) {
           const current = await liveLabService.getCurrentSecureAttempt(id, token);
@@ -83,6 +90,21 @@ export default function CodeSubmission() {
         secureAttemptRef.current = currentAttempt;
         setSecureAttempt(currentAttempt);
         setSecureAccessGranted(false);
+        autoSubmitTriggered.current = false;
+        setFullscreenTimeoutReached(false);
+        setFullscreenWarningActive(false);
+        setFullscreenTimeRemaining(0);
+        setAutoSubmitted(false);
+        if (
+          currentAttempt?.status === 'active'
+          && currentAttempt.autoSubmitRequired
+          && data.secureLab?.enabled
+          && data.secureLab.requireFullscreen
+        ) {
+          const timeout = Number(data.secureLab?.fullscreenExitTimeoutSeconds) || 15;
+          setFullscreenTimeRemaining(timeout);
+          setFullscreenWarningActive(true);
+        }
         setTestCases(cases.map((testCase, index) => ({
             id: index + 1,
           input: testCase.input,
@@ -183,11 +205,13 @@ export default function CodeSubmission() {
     const handleFullscreenChange = () => {
       const fullscreen = Boolean(document.fullscreenElement);
       setSecureFullscreen(fullscreen);
-      if (!fullscreen && assignment.secureLab.requireFullscreen) {
-        setSecureAccessGranted(false);
-        // Start the 15-second return-to-fullscreen warning timer
-        setFullscreenWarningActive(true);
-        setFullscreenTimeRemaining(15);
+      if (!fullscreen) {
+        if (assignment.secureLab.requireFullscreen) {
+          setSecureAccessGranted(false);
+          const timeout = Number(assignment.secureLab.fullscreenExitTimeoutSeconds) || 15;
+          setFullscreenWarningActive(true);
+          setFullscreenTimeRemaining(timeout);
+        }
         if (assignment.secureLab.recordFullscreenExits) {
           recordSecureEvent('FULLSCREEN_EXIT', { violation: true });
         }
@@ -199,20 +223,22 @@ export default function CodeSubmission() {
           clearInterval(fullscreenWarningTimerRef.current);
           fullscreenWarningTimerRef.current = null;
         }
-        recordSecureEvent('FULLSCREEN_RESTORED');
+        if (assignment.secureLab?.enabled && secureAttempt?.status === 'active') {
+          recordSecureEvent('FULLSCREEN_RESTORED');
+        }
       }
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, [assignment, secureAccessGranted, secureAttempt?.status]);
 
-  // 15-second return-to-fullscreen warning timer
+  // Give the student the configured interval to return to fullscreen.
   useEffect(() => {
-    if (!fullscreenWarningActive) return undefined;
+    if (!fullscreenWarningActive || !assignment?.secureLab?.enabled || !assignment.secureLab.requireFullscreen) return undefined;
     fullscreenWarningTimerRef.current = setInterval(() => {
       setFullscreenTimeRemaining((prev) => {
         if (prev <= 1) {
-          fullscreenTimeoutAutoSubmit.current = true;
+          setFullscreenTimeoutReached(true);
           setFullscreenWarningActive(false);
           return 0;
         }
@@ -225,16 +251,7 @@ export default function CodeSubmission() {
         fullscreenWarningTimerRef.current = null;
       }
     };
-  }, [fullscreenWarningActive]);
-
-  // Auto-submit when the 15-second fullscreen return window expires
-  useEffect(() => {
-    if (!fullscreenTimeoutAutoSubmit.current) return;
-    fullscreenTimeoutAutoSubmit.current = false;
-    setSecureWarning(null);
-    setAutoSubmitted(true);
-    handleSubmit();
-  }, [fullscreenTimeoutAutoSubmit.current]);
+  }, [assignment?.secureLab?.enabled, assignment?.secureLab?.requireFullscreen, fullscreenWarningActive]);
 
   useEffect(() => {
     if (!assignment?.secureLab?.enabled || secureAttempt?.status !== 'active') return undefined;
@@ -256,12 +273,37 @@ export default function CodeSubmission() {
   }, [assignment?.secureLab?.enabled, secureAttempt?.status]);
 
   useEffect(() => {
-    const hidden = Boolean(
-      assignment?.secureLab?.enabled && secureAccessGranted && secureFullscreen,
-    );
+    const hidden = Boolean(assignment?.secureLab?.enabled && secureAccessGranted && secureFullscreen);
     document.body.classList.toggle('secure-assessment-fullscreen', hidden);
     return () => document.body.classList.remove('secure-assessment-fullscreen');
-  }, [assignment?.secureLab?.enabled, secureAccessGranted, secureFullscreen]);
+  }, [assignment, secureAccessGranted, secureFullscreen]);
+
+  useEffect(() => {
+    if (!assignment?.secureLab?.enabled || !secureAccessGranted) return undefined;
+    const preventClipboard = (event) => event.preventDefault();
+    const preventClipboardShortcuts = (event) => {
+      const key = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && ['c', 'x', 'v'].includes(key)) {
+        event.preventDefault();
+        event.stopPropagation();
+      } else if (event.shiftKey && key === 'insert') {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    document.addEventListener('copy', preventClipboard, true);
+    document.addEventListener('cut', preventClipboard, true);
+    document.addEventListener('paste', preventClipboard, true);
+    document.addEventListener('contextmenu', preventClipboard, true);
+    document.addEventListener('keydown', preventClipboardShortcuts, true);
+    return () => {
+      document.removeEventListener('copy', preventClipboard, true);
+      document.removeEventListener('cut', preventClipboard, true);
+      document.removeEventListener('paste', preventClipboard, true);
+      document.removeEventListener('contextmenu', preventClipboard, true);
+      document.removeEventListener('keydown', preventClipboardShortcuts, true);
+    };
+  }, [assignment, secureAccessGranted, secureFullscreen]);
 
   useEffect(() => {
     if (!assignment?.secureLab?.enabled || secureAttempt?.status !== 'active') return undefined;
@@ -326,8 +368,8 @@ export default function CodeSubmission() {
 
   const enterSecureMode = async () => {
     setSecureError('');
-    const settings = assignment.secureLab;
-    if (settings.requireFullscreen) {
+    const settings = assignment.secureLab || {};
+    if (settings.requireFullscreen && !document.fullscreenElement) {
       if (!document.fullscreenEnabled || !document.documentElement.requestFullscreen) {
         setSecureError('This browser does not support the required fullscreen assessment mode.');
         return;
@@ -342,6 +384,19 @@ export default function CodeSubmission() {
         setSecureError(error.message || 'Fullscreen could not be activated. Please allow it and retry.');
         return;
       }
+    }
+
+    if (fullscreenWarningTimerRef.current) {
+      clearInterval(fullscreenWarningTimerRef.current);
+      fullscreenWarningTimerRef.current = null;
+    }
+    setFullscreenWarningActive(false);
+    setFullscreenTimeRemaining(0);
+    setFullscreenTimeoutReached(false);
+
+    if (!settings.enabled) {
+      setSecureAccessGranted(true);
+      return;
     }
 
     if (secureAttempt?.status === 'active') {
@@ -482,12 +537,12 @@ export default function CodeSubmission() {
         secureAttemptRef.current = { ...secureAttempt, status: 'submitted' };
         setSecureAttempt((current) => current ? { ...current, status: 'submitted' } : current);
         setSecureAccessGranted(false);
-        if (document.fullscreenElement) {
-          try {
-            await document.exitFullscreen();
-          } catch (fullscreenError) {
-            console.error('Submission succeeded, but fullscreen could not be closed:', fullscreenError);
-          }
+      }
+      if (document.fullscreenElement) {
+        try {
+          await document.exitFullscreen();
+        } catch (fullscreenError) {
+          console.error('Submission succeeded, but fullscreen could not be closed:', fullscreenError);
         }
       }
     } catch (error) {
@@ -498,17 +553,22 @@ export default function CodeSubmission() {
   };
 
   useEffect(() => {
-    if (
-      autoSubmitTriggered.current
-      || !assignment?.secureLab?.enabled
-      || secureAttempt?.status !== 'active'
-      || !secureAttempt?.autoSubmitRequired
-    ) return;
+    const fullscreenTimeoutExpired = Boolean(
+      assignment?.secureLab?.enabled
+      && assignment.secureLab.requireFullscreen
+      && fullscreenTimeoutReached,
+    );
+    const exitLimitReached = Boolean(
+      assignment?.secureLab?.enabled
+      && secureAttempt?.status === 'active'
+      && secureAttempt?.autoSubmitRequired,
+    );
+    if (autoSubmitTriggered.current || (!fullscreenTimeoutExpired && !exitLimitReached)) return;
     autoSubmitTriggered.current = true;
     setSecureWarning(null);
     setAutoSubmitted(true);
     handleSubmit();
-  }, [assignment?.secureLab?.enabled, secureAttempt?.autoSubmitRequired, secureAttempt?.status]);
+  }, [assignment?.secureLab?.enabled, assignment?.secureLab?.requireFullscreen, fullscreenTimeoutReached, secureAttempt?.autoSubmitRequired, secureAttempt?.status]);
 
   const handleReset = () => {
     const template = studentService.getCodeTemplate(language);
@@ -539,6 +599,7 @@ export default function CodeSubmission() {
   if (assignment.secureLab?.enabled && (
     !secureAccessGranted
     || (assignment.secureLab.requireFullscreen && !secureFullscreen)
+    || secureAttempt?.status !== 'active'
   )) {
     const attemptEnded = secureAttempt && secureAttempt.status !== 'active';
     return (
@@ -547,7 +608,9 @@ export default function CodeSubmission() {
           <div className="mb-4 flex items-center gap-3">
             <ShieldCheck size={26} className="text-cera-warning" />
             <div>
-              <p className="text-xs uppercase tracking-widest text-cera-highlight">Secure Lab Mode</p>
+              <p className="text-xs uppercase tracking-widest text-cera-highlight">
+                {assignment.secureLab?.enabled ? 'Secure Lab Mode' : 'Assignment workspace'}
+              </p>
               <h1 className="text-xl font-bold text-cera-text">{assignment.title}</h1>
             </div>
           </div>
@@ -562,21 +625,31 @@ export default function CodeSubmission() {
             </>
           ) : (
             <>
+              {fullscreenWarningActive && (
+                <p role="alert" className="mb-5 rounded-lg border border-cera-warning/40 bg-cera-warning/10 p-4 text-sm text-cera-warning">
+                  Fullscreen was exited. Return within{' '}
+                  <span className="font-mono font-bold">{fullscreenTimeRemaining}s</span>{' '}
+                  or your current work will be submitted automatically.
+                </p>
+              )}
               <ul className="space-y-3 text-sm text-cera-muted">
-                {assignment.secureLab.requireFullscreen && <li>• You must enter fullscreen before the assessment starts or resumes.</li>}
-                {assignment.secureLab.recordTabSwitches && <li>• Switching tabs or minimizing the browser may be recorded.</li>}
-                {assignment.secureLab.recordFullscreenExits && <li>• Exiting fullscreen may be recorded for faculty review.</li>}
-                {assignment.secureLab.recordFullscreenExits && assignment.secureLab.maxFullscreenExits > 0 && (
+                {assignment.secureLab.requireFullscreen
+                  ? <li>• Enter fullscreen to start or resume this assignment.</li>
+                  : <li>• Fullscreen is optional for this assignment.</li>}
+                <li>• Copy, cut, paste, and the context menu are disabled in the assignment workspace.</li>
+                <li>• Websites cannot reliably block screenshots or photos taken with another device.</li>
+                {assignment.secureLab?.recordTabSwitches && <li>• Switching tabs or minimizing the browser may be recorded.</li>}
+                {assignment.secureLab?.recordFullscreenExits && <li>• Exiting fullscreen may be recorded for faculty review.</li>}
+                {assignment.secureLab?.recordFullscreenExits && assignment.secureLab.maxFullscreenExits > 0 && (
                   <li>
                     • Exceeding {assignment.secureLab.maxFullscreenExits} fullscreen
                     {' '}{assignment.secureLab.maxFullscreenExits === 1 ? 'exit' : 'exits'} automatically submits your work.
                   </li>
                 )}
                 <li>• Repeated activity may be flagged for review; these signals are not proof of misconduct.</li>
-                <li>• Browser monitoring cannot prevent or detect every form of cheating.</li>
                 <li>• Save or submit your work before the deadline.</li>
               </ul>
-              {!secureAttempt && (
+              {assignment.secureLab?.enabled && !secureAttempt && (
                 <label className="mt-5 flex items-start gap-3 text-sm text-cera-text">
                   <input
                     type="checkbox"
@@ -589,18 +662,20 @@ export default function CodeSubmission() {
               )}
               {secureError && <p role="alert" className="mt-4 text-sm text-cera-error">{secureError}</p>}
               <div className="mt-6 flex flex-wrap gap-3">
-                <Button
-                  variant="ghost"
-                  onClick={() => navigate(`/student/assignments/${id}`)}
-                >
-                  Cancel
-                </Button>
+                {!fullscreenWarningActive && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => navigate(`/student/assignments/${id}`)}
+                  >
+                    Cancel
+                  </Button>
+                )}
                 <Button
                   icon={ShieldCheck}
                   disabled={attemptEnded || (!secureAttempt && !secureConsent)}
                   onClick={enterSecureMode}
                 >
-                  {secureAttempt ? 'Re-enter Secure Mode' : 'Enter Secure Mode'}
+                  {fullscreenWarningActive ? 'Return to fullscreen' : secureAttempt ? 'Re-enter fullscreen' : 'Start assignment'}
                 </Button>
               </div>
             </>
@@ -640,9 +715,28 @@ export default function CodeSubmission() {
   }
 
   const hasProblems = assignment.problems && assignment.problems.length > 0;
+  const clipboardRestrictionsActive = Boolean(assignment.secureLab?.enabled && secureAccessGranted);
+  const blockClipboard = (event) => event.preventDefault();
+  const blockClipboardShortcut = (event) => {
+    const key = event.key.toLowerCase();
+    if ((event.ctrlKey || event.metaKey) && ['c', 'x', 'v'].includes(key)) {
+      event.preventDefault();
+      event.stopPropagation();
+    } else if (event.shiftKey && key === 'insert') {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
 
   return (
-    <div className="space-y-4">
+    <div
+      className="space-y-4"
+      onCopy={clipboardRestrictionsActive ? blockClipboard : undefined}
+      onCut={clipboardRestrictionsActive ? blockClipboard : undefined}
+      onPaste={clipboardRestrictionsActive ? blockClipboard : undefined}
+      onContextMenu={clipboardRestrictionsActive ? blockClipboard : undefined}
+      onKeyDownCapture={clipboardRestrictionsActive ? blockClipboardShortcut : undefined}
+    >
     {secureError && (
       <p role="alert" className="rounded-lg border border-cera-warning/30 bg-cera-warning/5 p-3 text-xs text-cera-warning">
         {secureError}
@@ -650,7 +744,7 @@ export default function CodeSubmission() {
     )}
     {autoSubmitted && (
       <p role="status" className="rounded-lg border border-cera-primary/30 bg-cera-primary/5 p-3 text-xs text-cera-highlight">
-        This assessment was submitted automatically because the fullscreen-exit limit was reached.
+        This assessment was submitted automatically after the fullscreen return time expired or the exit limit was reached.
       </p>
     )}
     {liveLabError && (
@@ -767,9 +861,9 @@ export default function CodeSubmission() {
       )}
 
       {/* Main Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         {/* Left: Problem Description */}
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           {hasProblems && (
             <>
               <div className="bg-cera-card border border-cera-border rounded-xl overflow-hidden">
@@ -809,29 +903,29 @@ export default function CodeSubmission() {
           )}
 
           {/* Problem Description */}
-          <div className="bg-cera-card border border-cera-border rounded-xl p-5 max-h-[500px] overflow-y-auto">
+          <div className={`min-w-0 rounded-xl border border-cera-border bg-cera-card p-5 ${clipboardRestrictionsActive ? 'select-none' : ''}`}>
             {hasProblems ? (
               <>
                 <h3 className="font-semibold text-cera-text mb-2">
                   {assignment.problems[0].title}
                 </h3>
                 <StatusBadge status={assignment.problems[0].difficulty} className="mb-3" />
-                <p className="text-sm text-cera-muted mb-4">{assignment.problems[0].description}</p>
+                <p className="mb-4 whitespace-pre-wrap break-words text-sm text-cera-muted [overflow-wrap:anywhere]">{assignment.problems[0].description}</p>
 
                 <h4 className="text-sm font-medium text-cera-text mb-2">Input Format</h4>
-                <p className="text-sm text-cera-muted mb-4 font-mono bg-cera-bg/50 rounded-lg p-3">{assignment.problems[0].inputFormat}</p>
+                <p className="mb-4 whitespace-pre-wrap break-words rounded-lg bg-cera-bg/50 p-3 font-mono text-sm text-cera-muted [overflow-wrap:anywhere]">{assignment.problems[0].inputFormat}</p>
 
                 <h4 className="text-sm font-medium text-cera-text mb-2">Output Format</h4>
-                <p className="text-sm text-cera-muted mb-4 font-mono bg-cera-bg/50 rounded-lg p-3">{assignment.problems[0].outputFormat}</p>
+                <p className="mb-4 whitespace-pre-wrap break-words rounded-lg bg-cera-bg/50 p-3 font-mono text-sm text-cera-muted [overflow-wrap:anywhere]">{assignment.problems[0].outputFormat}</p>
 
                 <h4 className="text-sm font-medium text-cera-text mb-2">Examples</h4>
                 <div className="space-y-3">
                   {assignment.problems[0].examples.map((ex, i) => (
                     <div key={i} className="bg-cera-bg/50 rounded-lg p-3">
                       <p className="text-xs text-cera-muted mb-1">Input:</p>
-                      <p className="text-sm text-cera-text font-mono mb-2">{ex.input}</p>
+                      <p className="mb-2 whitespace-pre-wrap break-words font-mono text-sm text-cera-text [overflow-wrap:anywhere]">{ex.input}</p>
                       <p className="text-xs text-cera-muted mb-1">Output:</p>
-                      <p className="text-sm text-cera-text font-mono">{ex.output}</p>
+                      <p className="whitespace-pre-wrap break-words font-mono text-sm text-cera-text [overflow-wrap:anywhere]">{ex.output}</p>
                     </div>
                   ))}
                 </div>
@@ -844,13 +938,13 @@ export default function CodeSubmission() {
                 </ul>
               </>
             ) : (
-              <p className="text-sm text-cera-muted">{assignment.description}</p>
+              <p className="whitespace-pre-wrap break-words text-sm text-cera-muted [overflow-wrap:anywhere]">{assignment.description}</p>
             )}
           </div>
         </div>
 
         {/* Right: Code Editor */}
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <div className="bg-cera-card border border-cera-border rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-cera-border">
               <span className="text-sm font-medium text-cera-text font-mono">{language}</span>
@@ -867,7 +961,7 @@ export default function CodeSubmission() {
       </div>
 
       {/* Test Cases & Console */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <div>
           {testCases.length === 0 && (
             <p role="status" className="mb-2 rounded-lg border border-cera-border bg-cera-card p-3 text-sm text-cera-muted">
@@ -905,7 +999,7 @@ export default function CodeSubmission() {
       {/* Success / Auto-submit Modal */}
       <Modal
         isOpen={showSuccessModal}
-        onClose={() => setShowSuccessModal(false)}
+        onClose={() => navigate('/student/assignments', { replace: true })}
         title={autoSubmitted ? 'Assessment Auto-Submitted' : 'Submission Received'}
         size="md"
       >
@@ -947,8 +1041,8 @@ export default function CodeSubmission() {
             </div>
           )}
           <div className="flex gap-3 mt-6">
-            <Button variant="ghost" className="flex-1" onClick={() => setShowSuccessModal(false)}>Close</Button>
-            <Button className="flex-1" onClick={() => navigate('/student/submissions')}>View Submissions</Button>
+            <Button variant="ghost" className="flex-1" onClick={() => navigate('/student/assignments', { replace: true })}>Go to Assignments</Button>
+            <Button className="flex-1" onClick={() => navigate('/student/submissions', { replace: true })}>View Submissions</Button>
           </div>
         </div>
       </Modal>

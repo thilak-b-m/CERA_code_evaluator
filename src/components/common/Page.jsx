@@ -14,17 +14,8 @@ export default function Page({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            gap: 20,
-            alignItems: 'flex-end',
-            marginBottom: 28,
-            flexWrap: 'wrap',
-          }}
-        >
-          <div>
+        <div className="page-header">
+          <div className="page-heading">
             <div className="eyebrow">{eyebrow}</div>
 
             <h1 className="page-title">{title}</h1>
@@ -32,17 +23,7 @@ export default function Page({
             <p className="page-subtitle">{subtitle}</p>
           </div>
 
-          {actions && (
-            <div
-              style={{
-                display: 'flex',
-                gap: 8,
-                flexWrap: 'wrap',
-              }}
-            >
-              {actions}
-            </div>
-          )}
+          {actions && <div className="page-actions">{actions}</div>}
         </div>
 
         {children}
