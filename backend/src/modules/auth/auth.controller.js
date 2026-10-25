@@ -7,6 +7,7 @@ import {
   updateFacultyProfile,
   getFacultySettings,
   updateFacultySettings,
+  changePassword,
 } from './auth.service.js';
 
 export async function loginUser(request, response, next) {
@@ -56,6 +57,21 @@ export async function updateCurrentUser(request, response, next) {
       request.body || {},
     );
     response.json({ user, message: 'Faculty profile updated.' });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function changeCurrentPassword(request, response, next) {
+  try {
+    const { currentPassword, newPassword } = request.body || {};
+    const user = await changePassword(
+      getDatabase(),
+      request.user.id,
+      currentPassword,
+      newPassword,
+    );
+    response.json({ user, message: 'Password changed successfully.' });
   } catch (error) {
     next(error);
   }

@@ -339,6 +339,45 @@ export async function getAuthenticatedUser(database, claims) {
   return publicUser(user);
 }
 
+export async function changePassword(database, userId, currentPassword, newPassword) {
+  if (typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > 256) {
+    throw new AuthError('Password must be between 8 and 256 characters.', 400);
+  }
+  if (currentPassword === newPassword) {
+    throw new AuthError('New password must be different from the current password.', 400);
+  }
+
+  const user = await database.collection('users').findOne({ _id: new ObjectId(userId) });
+  if (!user) {
+    throw new AuthError('Account not found.', 404);
+  }
+
+  if (user.passwordSalt && user.passwordHash) {
+    const matches = await verifyPassword(currentPassword, user.passwordSalt, user.passwordHash);
+    if (!matches) {
+      throw new AuthError('Current password is incorrect.', 401);
+    }
+  }
+
+  const passwordCredentials = await hashPassword(newPassword);
+  const result = await database.collection('users').updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        passwordSalt: passwordCredentials.salt,
+        passwordHash: passwordCredentials.hash,
+        status: 'active',
+        updatedAt: new Date(),
+      },
+      $inc: { tokenVersion: 1 },
+    },
+  );
+  if (!result.matchedCount) {
+    throw new AuthError('Account not found.', 404);
+  }
+  return publicUser({ ...user, status: 'active' });
+}
+
 export async function updateFacultyProfile(database, faculty, input) {
   if (faculty?.role !== 'faculty' || !ObjectId.isValid(faculty.id)) {
     throw new AuthError('Faculty profile not found.', 404);

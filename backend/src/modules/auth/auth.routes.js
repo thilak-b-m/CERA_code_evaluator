@@ -5,6 +5,7 @@ import {
   loginUser,
   updateCurrentThemePreference,
   updateCurrentUser,
+  changeCurrentPassword,
   getCurrentFacultySettings,
   saveCurrentFacultySettings,
 } from './auth.controller.js';
@@ -17,6 +18,7 @@ router.get('/me', authenticate, getCurrentUser);
 router.get('/preferences/theme', authenticate, getCurrentThemePreference);
 router.put('/preferences/theme', authenticate, updateCurrentThemePreference);
 router.patch('/me', authenticate, updateCurrentUser);
+router.patch('/me/password', authenticate, changeCurrentPassword);
 router.get('/faculty-settings', authenticate, requireFaculty, getCurrentFacultySettings);
 router.put('/faculty-settings', authenticate, requireFaculty, saveCurrentFacultySettings);
 
