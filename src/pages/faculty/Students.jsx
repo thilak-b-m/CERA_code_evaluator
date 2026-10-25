@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Check, ChevronDown, Download, MoreHorizontal, Plus, Search, Users } from 'lucide-react';
-
-import Dropdown from '../../components/common/Dropdown.jsx';
+import { Check, Download, Eye, MoreHorizontal, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
 
 import Page from '../../components/common/Page.jsx';
 import Card from '../../components/common/Card.jsx';
@@ -32,19 +30,25 @@ function StatusIndicator({ active }) {
 
 function StudentActionsMenu({ student, onEdit, onCorrect, onStatus, onDelete }) {
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
+  const triggerRef = useRef(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
 
   const actions = [
-    { value: 'view', label: 'View student' },
-    { value: 'edit', label: 'Edit details' },
-    { value: 'correct', label: 'Correct academic year' },
+    { value: 'view', label: 'View student', icon: Eye },
+    { value: 'edit', label: 'Edit details', icon: Pencil },
+    { value: 'correct', label: 'Correct academic year', icon: Users },
     {
       value: student.status === 'active' ? 'deactivate' : 'reactivate',
       label: student.status === 'active' ? 'Deactivate' : 'Reactivate',
+      icon: Users,
     },
-    { value: 'delete', label: 'Delete account' },
+    { value: 'delete', label: 'Delete account', icon: Trash2, danger: true },
   ];
 
   const handleSelect = (value) => {
+    setOpen(false);
     if (value === 'view') {
       navigate(`/students/${encodeURIComponent(student.usn)}`);
     } else if (value === 'edit') {
@@ -58,15 +62,86 @@ function StudentActionsMenu({ student, onEdit, onCorrect, onStatus, onDelete }) 
     }
   };
 
+  // Close on click outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target) && !triggerRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Position menu near trigger
+  useEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const menuHeight = 180;
+    const vh = window.innerHeight;
+    const vw = window.innerWidth;
+    let top = rect.bottom + 6;
+    if (top + menuHeight > vh - 8) top = rect.top - menuHeight - 6;
+    const right = vw - rect.right;
+    setMenuPosition({ top, right });
+  }, [open, triggerRef.current]);
+
   return (
-    <Dropdown
-      value={null}
-      onChange={handleSelect}
-      options={actions}
-      placeholder="Actions"
-      icon={MoreHorizontal}
-      className="w-48"
-    />
+    <div style={{ display: 'flex', alignItems: 'center' }}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="icon-btn"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-label={`Actions for ${student.name}`}
+        style={{ padding: 6, margin: 0 }}
+      >
+        <MoreHorizontal size={16} />
+      </button>
+
+      {open && (
+        <div
+          ref={menuRef}
+          style={{
+            position: 'fixed',
+            top: menuPosition.top,
+            right: menuPosition.right,
+            zIndex: 100,
+            width: 175,
+            padding: 6,
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 9,
+            boxShadow: '0 12px 30px rgba(0,0,0,.3)',
+          }}
+        >
+          {actions.map((action) => (
+            <button
+              key={action.value}
+              type="button"
+              onClick={() => handleSelect(action.value)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                width: '100%',
+                padding: '9px 10px',
+                color: action.danger ? 'var(--error)' : 'var(--text)',
+                background: 'transparent',
+                border: 0,
+                fontSize: 12,
+                cursor: 'pointer',
+                textAlign: 'left',
+                borderRadius: 6,
+              }}
+            >
+              <action.icon size={14} />
+              {action.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -445,10 +520,54 @@ export default function Students() {
                 <option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option>
               </select>
             </label>
-            <Button variant="outline" size="sm" onClick={toggleSelectFiltered} loading={selectingAll} disabled={!pagination.total} icon={allFilteredSelected ? Check : Users} className="whitespace-nowrap h-10">
-              {allFilteredSelected ? 'Clear selection' : 'Select all'}
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => exportStudents()} loading={exporting} icon={Download} className="whitespace-nowrap h-10">Export CSV</Button>
+            <button
+              type="button"
+              onClick={toggleSelectFiltered}
+              disabled={!pagination.total || selectingAll}
+              className="whitespace-nowrap"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                height: 40,
+                minWidth: 110,
+                padding: '0 12px',
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+                fontSize: 13,
+                borderRadius: 9,
+                cursor: (!pagination.total || selectingAll) ? 'not-allowed' : 'pointer',
+                opacity: (!pagination.total || selectingAll) ? 0.5 : 1,
+              }}
+            >
+              {allFilteredSelected ? <Check size={14} /> : <Users size={14} />}
+              <span>{allFilteredSelected ? 'Clear selection' : 'Select all'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => exportStudents()}
+              disabled={exporting}
+              className="whitespace-nowrap"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                height: 40,
+                minWidth: 110,
+                padding: '0 12px',
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+                fontSize: 13,
+                borderRadius: 9,
+                cursor: exporting ? 'not-allowed' : 'pointer',
+                opacity: exporting ? 0.5 : 1,
+              }}
+            >
+              <Download size={14} />
+              <span>Export CSV</span>
+            </button>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-cera-muted">
             <span className="inline-flex items-center gap-2"><Users size={14} />{pagination.total} {pagination.total === 1 ? 'student' : 'students'}{user?.department ? ` · ${user.department}` : ''}</span>

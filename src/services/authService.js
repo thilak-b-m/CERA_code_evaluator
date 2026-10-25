@@ -29,4 +29,12 @@ export const authService = {
   },
 
   signOut: async () => true,
+
+  async changePassword(currentPassword, newPassword, token) {
+    return api.request('/api/auth/me/password', {
+      method: 'PATCH',
+      token,
+      body: { currentPassword, newPassword },
+    });
+  },
 };

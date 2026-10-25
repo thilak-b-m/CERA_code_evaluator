@@ -25,7 +25,7 @@ export default function DashboardStats({ stats }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
             whileHover={{ y: -2 }}
-            className="bg-cera-card border border-cera-border rounded-xl p-4 hover:border-cera-muted/30 transition-colors"
+            className="bg-cera-card border border-cera-border rounded-xl p-4 hover:border-cera-primary/30 transition-colors"
           >
             <div className="flex items-start justify-between mb-3">
               <div className={`w-9 h-9 rounded-lg ${colors.bg} flex items-center justify-center`}>

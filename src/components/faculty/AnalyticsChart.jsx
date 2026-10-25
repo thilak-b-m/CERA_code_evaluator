@@ -31,12 +31,12 @@ export default function AnalyticsChart({
           >
             <stop
               offset="0%"
-              stopColor="#6366F1"
-              stopOpacity=".32"
+              stopColor="var(--primary)"
+              stopOpacity=".28"
             />
             <stop
               offset="100%"
-              stopColor="#6366F1"
+              stopColor="var(--primary)"
               stopOpacity="0"
             />
           </linearGradient>
@@ -66,8 +66,8 @@ export default function AnalyticsChart({
                 )
                 .join(' ')}
               fill="none"
-              stroke="#818CF8"
-              strokeWidth="3"
+              stroke="var(--primary)"
+              strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"
             />

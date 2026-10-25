@@ -34,7 +34,7 @@ const navSections = [
 ];
 
 export default function StudentSidebar() {
-  const { mobileSidebarOpen, closeMobileSidebar } = useTheme();
+  const { sidebarCollapsed, mobileSidebarOpen, closeMobileSidebar, toggleSidebar } = useTheme();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -47,7 +47,8 @@ export default function StudentSidebar() {
   };
 
   return (
-    <aside className={`sidebar ${mobileSidebarOpen ? 'open' : ''}`}>
+    <aside className={`sidebar ${mobileSidebarOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}>
+      {/* Header */}
       <div className="flex items-center gap-[11px] px-5 pt-[22px] pb-[18px]">
         <div className="brand-mark" aria-label="CERA logo">
           <img
@@ -57,31 +58,43 @@ export default function StudentSidebar() {
             style={{ transform: 'scale(1.5)' }}
           />
         </div>
-        <div className="min-w-0">
-          <div className="logo-word">CERA</div>
-          <div className="mt-0.5 text-[9px] text-cera-text">Code Execution, Review and Assessment</div>
-          <div className="mt-0.5 text-[11px] text-cera-muted">Learn, execute, excel</div>
-        </div>
+        {!sidebarCollapsed && (
+          <div className="brand-text min-w-0">
+            <div className="logo-word">CERA</div>
+            <div className="mt-0.5 text-[9px] text-cera-text">Code Execution, Review and Assessment</div>
+            <div className="logo-sub mt-0.5 text-[11px] text-cera-muted">Learn, execute, excel</div>
+          </div>
+        )}
         <button
           type="button"
           className="icon-btn ml-auto shrink-0"
-          onClick={closeMobileSidebar}
+          onClick={sidebarCollapsed ? toggleSidebar : closeMobileSidebar}
           aria-label="Close menu"
         >
           <PanelLeftClose size={17} />
         </button>
       </div>
 
-      <div className="px-[10px] pb-[14px]">
-        <div className="flex w-full items-center gap-[9px] rounded-[9px] border border-cera-border bg-cera-elevated p-[10px] text-left text-cera-text">
-          <span className="avatar" style={{ background: 'linear-gradient(135deg,#22D3EE,#6366F1)' }}>{initials}</span>
-          <span className="min-w-0">
-            <span className="block truncate text-xs font-bold">{user?.name || 'Student'}</span>
-            <span className="block truncate text-[10px] text-cera-muted">Student Portal</span>
-          </span>
+      {/* Profile card */}
+      {!sidebarCollapsed ? (
+        <div className="px-[10px] pb-[14px]">
+          <div className="flex w-full items-center gap-[9px] rounded-[9px] border border-cera-border bg-cera-elevated p-[10px] text-left text-cera-text">
+            <span className="avatar" style={{ background: 'linear-gradient(135deg,#22D3EE,#6366F1)' }}>{initials}</span>
+            <span className="profile-card-text min-w-0">
+              <span className="block truncate text-xs font-bold">{user?.name || 'Student'}</span>
+              <span className="block truncate text-[10px] text-cera-muted">Student Portal</span>
+            </span>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '0 0 14px' }}>
+          <Link to="/student/profile" className="avatar" style={{ background: 'linear-gradient(135deg,#22D3EE,#6366F1)' }} aria-label="View profile">
+            {initials}
+          </Link>
+        </div>
+      )}
 
+      {/* Nav */}
       <div className="sidebar-nav flex-1 overflow-y-auto">
         {navSections.map((section) => (
           <div key={section.label}>
@@ -92,6 +105,7 @@ export default function StudentSidebar() {
                 to={path}
                 className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
                 onClick={closeMobileSidebar}
+                title={sidebarCollapsed ? label : undefined}
                 data-testid={`link-${label.toLowerCase().replaceAll(' ', '-')}`}
               >
                 <Icon size={16} strokeWidth={1.8} />
@@ -102,20 +116,23 @@ export default function StudentSidebar() {
         ))}
       </div>
 
+      {/* Footer */}
       <div className="border-t border-cera-border px-[10px] py-3">
         <NavLink
           to="/student/notifications"
           className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
           onClick={closeMobileSidebar}
+          title={sidebarCollapsed ? 'Notifications' : undefined}
         >
           <Bell size={16} />
           <span>Notifications</span>
-          <span className="ml-auto h-1.5 w-1.5 rounded-full bg-cera-highlight" />
+          <span className="sidebar-link-badge ml-auto h-1.5 w-1.5 rounded-full bg-cera-highlight" />
         </NavLink>
         <button
           type="button"
           className="sidebar-link w-[calc(100%-20px)] cursor-pointer border-0 bg-transparent"
           onClick={handleSignOut}
+          title={sidebarCollapsed ? 'Sign out' : undefined}
         >
           <LogOut size={16} />
           <span>Sign out</span>

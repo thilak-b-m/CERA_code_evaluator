@@ -5,7 +5,9 @@ import {
   ExternalLink,
   GraduationCap,
   IdCard,
+  Key,
   Link as LinkIcon,
+  Lock,
   Mail,
   Save,
   X,
@@ -13,6 +15,7 @@ import {
 import Loading from '../../components/common/Loading.jsx';
 import Modal from '../../components/common/Modal.jsx';
 import { studentService } from '../../services/studentService.js';
+import { useApp } from '../../context/AppContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Page from '../../components/common/Page.jsx';
 
@@ -26,6 +29,7 @@ const emptyForm = {
 };
 
 export default function Profile() {
+  const { notify } = useApp();
   const { token, updateUser } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -35,6 +39,10 @@ export default function Profile() {
   const [saveError, setSaveError] = useState('');
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +107,30 @@ export default function Profile() {
     }
   };
 
+  const handleChangePassword = async (event) => {
+    event.preventDefault();
+    setPasswordError('');
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      setPasswordError('New password and confirm password do not match.');
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await studentService.changePassword(
+        pwForm.currentPassword,
+        pwForm.newPassword,
+        token,
+      );
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setChangePasswordOpen(false);
+      notify('Password changed successfully');
+    } catch (changeError) {
+      setPasswordError(changeError.message);
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   if (loading) return <Page eyebrow="STUDENT / ACCOUNT" title="Profile" subtitle="Loading your student profile…"><Loading type="cards" count={2} /></Page>;
 
   if (error) {
@@ -140,10 +172,16 @@ export default function Profile() {
               <p className="mt-1 text-sm text-cera-muted">{profile.department || 'Student account'}</p>
             </div>
           </div>
-          <button type="button" className="btn btn-primary" onClick={openEditor}>
-            <Edit3 size={15} />
-            Edit profile
-          </button>
+          <div className="flex gap-2">
+            <button type="button" className="btn btn-primary" onClick={openEditor}>
+              <Edit3 size={15} />
+              Edit profile
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={() => setChangePasswordOpen(true)}>
+              <Lock size={15} />
+              Change password
+            </button>
+          </div>
         </div>
       </section>
 
@@ -237,6 +275,78 @@ export default function Profile() {
             </button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               <Save size={14} /> {saving ? 'Saving...' : 'Save changes'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        isOpen={changePasswordOpen}
+        onClose={() => {
+          setChangePasswordOpen(false);
+          setPasswordError('');
+          setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        }}
+        title="Change password"
+        size="md"
+      >
+        <form onSubmit={handleChangePassword} className="space-y-4">
+          <label className="block">
+            <span className="label">Current password</span>
+            <input
+              className="input"
+              type="password"
+              value={pwForm.currentPassword}
+              required
+              onChange={(event) => setPwForm({ ...pwForm, currentPassword: event.target.value })}
+            />
+          </label>
+          <label className="block">
+            <span className="label">New password</span>
+            <input
+              className="input"
+              type="password"
+              value={pwForm.newPassword}
+              minLength={8}
+              required
+              onChange={(event) => setPwForm({ ...pwForm, newPassword: event.target.value })}
+            />
+          </label>
+          <label className="block">
+            <span className="label">Confirm new password</span>
+            <input
+              className="input"
+              type="password"
+              value={pwForm.confirmPassword}
+              minLength={8}
+              required
+              onChange={(event) => setPwForm({ ...pwForm, confirmPassword: event.target.value })}
+            />
+          </label>
+          {passwordError && (
+            <p className="text-sm" style={{ color: 'var(--error)' }} role="alert">
+              {passwordError}
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                setChangePasswordOpen(false);
+                setPasswordError('');
+                setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+              }}
+            >
+              <X size={14} /> Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={changingPassword}
+            >
+              <Key size={14} />
+              {changingPassword ? 'Changing...' : 'Change password'}
             </button>
           </div>
         </form>

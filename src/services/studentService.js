@@ -347,6 +347,14 @@ export const studentService = {
     return result.student;
   },
 
+  async changePassword(currentPassword, newPassword, token) {
+    return api.request('/api/auth/me/password', {
+      method: 'PATCH',
+      token,
+      body: { currentPassword, newPassword },
+    });
+  },
+
   getCodeTemplate(language) {
     return codeTemplates[language] || codeTemplates.python;
   },

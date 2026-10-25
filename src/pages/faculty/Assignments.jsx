@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   MoreHorizontal,
@@ -27,6 +27,8 @@ export default function Assignments() {
   const [openMenu, setOpenMenu] = useState(null);
   const [assignmentList, setAssignmentList] = useState([]);
   const [lastDeleted, setLastDeleted] = useState(null);
+  const menuRef = useRef(null);
+  const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
 
   const { notify } = useApp();
   const { token } = useAuth();
@@ -181,6 +183,20 @@ export default function Assignments() {
     setOpenMenu(null);
   };
 
+  /* =========================
+     CLOSE MENU ON CLICK OUTSIDE
+  ========================= */
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setOpenMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
     <Page
       title="Assignments"
@@ -320,21 +336,16 @@ export default function Assignments() {
 
                   {/* ACTIONS */}
 
-                  <td
-                    style={{
-                      position: 'relative',
-                    }}
-                  >
+                  <td>
                     <button
                       type="button"
                       className="icon-btn"
-                      onClick={() =>
+                      onClick={(event) => {
+                        setMenuPos({ x: event.clientX, y: event.clientY, right: window.innerWidth - event.clientX });
                         setOpenMenu(
-                          openMenu === a.id
-                            ? null
-                            : a.id
-                        )
-                      }
+                          openMenu === a.id ? null : a.id
+                        );
+                      }}
                       aria-label={`More actions for ${a.title}`}
                     >
                       <MoreHorizontal size={17} />
@@ -342,90 +353,91 @@ export default function Assignments() {
 
                     {openMenu === a.id && (
                       <div
-                        style={{
-                          position: 'absolute',
-                          right: 12,
-                          top: 'calc(100% - 4px)',
-                          zIndex: 100,
-                          width: 175,
-                          padding: 6,
-                          background: 'var(--surface)',
-                          border:
-                            '1px solid var(--border)',
-                          borderRadius: 9,
-                          boxShadow:
-                            '0 12px 30px rgba(0,0,0,.3)',
-                        }}
-                      >
-                        {/* EDIT */}
-
-                        <Link
-                          to={`/assignments/${a.id}/edit`}
-                          onClick={closeMenu}
+                          ref={menuRef}
                           style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            width: '100%',
-                            padding: '9px 10px',
-                            color: 'var(--text)',
-                            textDecoration: 'none',
-                            fontSize: 12,
-                            borderRadius: 6,
+                            position: 'fixed',
+                            top: menuPos.y,
+                            right: menuPos.right,
+                            zIndex: 100,
+                            width: 175,
+                            padding: 6,
+                            background: 'var(--surface)',
+                            border:
+                              '1px solid var(--border)',
+                            borderRadius: 9,
+                            boxShadow:
+                              '0 12px 30px rgba(0,0,0,.3)',
                           }}
                         >
-                          <Pencil size={14} />
-                          Edit assignment
-                        </Link>
+                          {/* EDIT */}
 
-                        {/* VIEW */}
+                          <Link
+                            to={`/assignments/${a.id}/edit`}
+                            onClick={closeMenu}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              width: '100%',
+                              padding: '9px 10px',
+                              color: 'var(--text)',
+                              textDecoration: 'none',
+                              fontSize: 12,
+                              borderRadius: 6,
+                            }}
+                          >
+                            <Pencil size={14} />
+                            Edit assignment
+                          </Link>
 
-                        <Link
-                          to={`/assignments/${a.id}`}
-                          onClick={closeMenu}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            width: '100%',
-                            padding: '9px 10px',
-                            color: 'var(--text)',
-                            textDecoration: 'none',
-                            fontSize: 12,
-                            borderRadius: 6,
-                          }}
-                        >
-                          <Eye size={14} />
-                          View assignment
-                        </Link>
+                          {/* VIEW */}
 
-                        {/* DELETE */}
+                          <Link
+                            to={`/assignments/${a.id}`}
+                            onClick={closeMenu}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              width: '100%',
+                              padding: '9px 10px',
+                              color: 'var(--text)',
+                              textDecoration: 'none',
+                              fontSize: 12,
+                              borderRadius: 6,
+                            }}
+                          >
+                            <Eye size={14} />
+                            View assignment
+                          </Link>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleDelete(a)
-                          }
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            width: '100%',
-                            padding: '9px 10px',
-                            color: 'var(--error)',
-                            background: 'transparent',
-                            border: 0,
-                            fontSize: 12,
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            borderRadius: 6,
-                          }}
-                        >
-                          <Trash2 size={14} />
-                          Delete assignment
-                        </button>
-                      </div>
-                    )}
+                          {/* DELETE */}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleDelete(a)
+                            }
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              width: '100%',
+                              padding: '9px 10px',
+                              color: 'var(--error)',
+                              background: 'transparent',
+                              border: 0,
+                              fontSize: 12,
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                              borderRadius: 6,
+                            }}
+                          >
+                            <Trash2 size={14} />
+                            Delete assignment
+                          </button>
+                        </div>
+                      )}
                   </td>
                 </tr>
               ))}

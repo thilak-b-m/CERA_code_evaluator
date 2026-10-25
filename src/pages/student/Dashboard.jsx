@@ -71,7 +71,7 @@ export default function Dashboard() {
               <button
                 key={action.path}
                 onClick={() => navigate(action.path)}
-                className="bg-cera-card border border-cera-border rounded-xl p-4 text-left hover:border-cera-muted/30 transition-colors"
+                className="bg-cera-card border border-cera-border rounded-xl p-4 text-left hover:border-cera-primary/30 transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-3 text-sm font-medium text-cera-text">

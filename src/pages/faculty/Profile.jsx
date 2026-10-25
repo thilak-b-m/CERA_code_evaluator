@@ -3,7 +3,9 @@ import {
   Building2,
   Edit3,
   ExternalLink,
+  Key,
   Link as LinkIcon,
+  Lock,
   Mail,
   Save,
   UserRound,
@@ -25,6 +27,10 @@ export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [form, setForm] = useState(() => ({
     name: user?.name || '',
     email: user?.email || '',
@@ -70,6 +76,30 @@ export default function Profile() {
     }
   };
 
+  const handleChangePassword = async (event) => {
+    event.preventDefault();
+    setPasswordError('');
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      setPasswordError('New password and confirm password do not match.');
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await authService.changePassword(
+        pwForm.currentPassword,
+        pwForm.newPassword,
+        token,
+      );
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setChangePasswordOpen(false);
+      notify('Password changed successfully');
+    } catch (changeError) {
+      setPasswordError(changeError.message);
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   const details = [
     { label: 'Name', value: name, icon: UserRound },
     { label: 'Work email', value: user?.email, icon: Mail },
@@ -81,10 +111,16 @@ export default function Profile() {
       title="Faculty profile"
       subtitle="Manage your account details and professional information."
       actions={(
-        <button type="button" className="btn btn-primary" onClick={openEditor}>
-          <Edit3 size={14} />
-          Edit profile
-        </button>
+        <>
+          <button type="button" className="btn btn-primary" onClick={openEditor}>
+            <Edit3 size={14} />
+            Edit profile
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={() => setChangePasswordOpen(true)}>
+            <Lock size={14} />
+            Change password
+          </button>
+        </>
       )}
     >
       <div className="grid max-w-4xl gap-5">
@@ -193,6 +229,78 @@ export default function Profile() {
             </button>
             <button type="submit" className="btn btn-primary" disabled={isSaving}>
               <Save size={14} /> {isSaving ? 'Saving...' : 'Save changes'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        isOpen={changePasswordOpen}
+        onClose={() => {
+          setChangePasswordOpen(false);
+          setPasswordError('');
+          setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        }}
+        title="Change password"
+        size="md"
+      >
+        <form onSubmit={handleChangePassword} className="space-y-4">
+          <label className="block">
+            <span className="label">Current password</span>
+            <input
+              className="input"
+              type="password"
+              value={pwForm.currentPassword}
+              required
+              onChange={(event) => setPwForm({ ...pwForm, currentPassword: event.target.value })}
+            />
+          </label>
+          <label className="block">
+            <span className="label">New password</span>
+            <input
+              className="input"
+              type="password"
+              value={pwForm.newPassword}
+              minLength={8}
+              required
+              onChange={(event) => setPwForm({ ...pwForm, newPassword: event.target.value })}
+            />
+          </label>
+          <label className="block">
+            <span className="label">Confirm new password</span>
+            <input
+              className="input"
+              type="password"
+              value={pwForm.confirmPassword}
+              minLength={8}
+              required
+              onChange={(event) => setPwForm({ ...pwForm, confirmPassword: event.target.value })}
+            />
+          </label>
+          {passwordError && (
+            <p className="text-sm" style={{ color: 'var(--error)' }} role="alert">
+              {passwordError}
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                setChangePasswordOpen(false);
+                setPasswordError('');
+                setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+              }}
+            >
+              <X size={14} /> Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={changingPassword}
+            >
+              <Key size={14} />
+              {changingPassword ? 'Changing...' : 'Change password'}
             </button>
           </div>
         </form>

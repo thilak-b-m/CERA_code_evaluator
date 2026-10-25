@@ -11,10 +11,8 @@ export default function ActivityFeed({ submissions }) {
   };
 
   return (
-    <div className="bg-cera-card border border-cera-border rounded-xl p-5">
-      <h3 className="font-semibold text-cera-text mb-4">Recent Activity</h3>
-      <div className="space-y-3">
-        {submissions.slice(0, 5).map((sub, index) => (
+    <div className="divide-y divide-cera-border">
+      {submissions.slice(0, 5).map((sub, index) => (
           <motion.div
             key={sub.id}
             initial={{ opacity: 0, x: -10 }}
@@ -30,7 +28,8 @@ export default function ActivityFeed({ submissions }) {
                 navigate(`/student/submissions/${sub.id}`);
               }
             }}
-            className="flex items-center gap-3 cursor-pointer hover:bg-cera-elevated/50 p-2 rounded-lg transition-colors"
+            className="flex items-center gap-3 cursor-pointer hover:bg-cera-elevated p-3 rounded-lg transition-colors"
+          style={{ margin: '0 4px' }}
           >
             <div className={`w-2 h-2 rounded-full ${getStatusColor(sub.evaluation?.status)} shrink-0`} />
             <div className="flex-1 min-w-0">
@@ -43,8 +42,7 @@ export default function ActivityFeed({ submissions }) {
               {formatDate(sub.submittedAt, { year: undefined })}
             </span>
           </motion.div>
-        ))}
-      </div>
+      ))}
     </div>
   );
 }
